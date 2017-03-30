@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 #include "userprog/gdt.h"
 #include "userprog/pagedir.h"
 #include "userprog/tss.h"
@@ -26,17 +27,34 @@ static bool load (const char *cmdline, void (**eip) (void), void **esp);
    before process_execute() returns.  Returns the new process's
    thread id, or TID_ERROR if the thread cannot be created. */
 tid_t
-process_execute (const char *file_name) 
+process_execute (const char *program_args) 
 {
   char *fn_copy;
-  tid_t tid;
 
-  /* Make a copy of FILE_NAME.
+  char *throwaway;
+  char ** args;
+  char *file_name;
+  int arg_index = 0;
+  tid_t tid;
+  
+
+  /* Make a copy of arguments.
      Otherwise there's a race between the caller and load(). */
   fn_copy = palloc_get_page (0);
   if (fn_copy == NULL)
     return TID_ERROR;
-  strlcpy (fn_copy, file_name, PGSIZE);
+  strlcpy (fn_copy, program_args, PGSIZE);
+
+  file_name = strtok(program_args, ' ');
+  throwaway = strtok(program_args, ' ');
+  while(throwaway != NULL && arg_index < 16){
+    args[arg_index] = throwaway;
+    throwaway = strtok(program_args, ' ');
+    arg_index++;
+  }
+
+  //TODO push each argument from aux onto user stack, how do? must implement user memory first? :P
+  //palloc_get_page:  palloc flag 004 indicates user page
 
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
