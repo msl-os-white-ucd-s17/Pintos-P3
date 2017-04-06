@@ -15,6 +15,11 @@ syscall_init (void)
 static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
+  //TODO check all the pointers n such: NOT NULL..., below PHYS_BASE, anything else?
+  //TODO process which system call is being referenced in syscall-nr.h then call in users/syscall.c
+  //TODO create data structure that stores identifier, function, arguments for syscalls
   printf ("system call!\n");
   thread_exit ();
 }
+
+//TODO implement all the fucking things dammit

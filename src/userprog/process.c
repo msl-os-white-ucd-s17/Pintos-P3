@@ -5,7 +5,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
 #include "userprog/gdt.h"
 #include "userprog/pagedir.h"
 #include "userprog/tss.h"
@@ -20,41 +19,24 @@
 #include "threads/vaddr.h"
 
 static thread_func start_process NO_RETURN;
-static bool load (const char *cmdline, void (**eip) (void), void **esp);
+static bool load (user_program user_prog, void (**eip) (void), void **esp);
 
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
    before process_execute() returns.  Returns the new process's
    thread id, or TID_ERROR if the thread cannot be created. */
 tid_t
-process_execute (const char *program_args) 
+process_execute (const char *file_name)
 {
   char *fn_copy;
-
-  char *throwaway;
-  char ** args;
-  char *file_name;
-  int arg_index = 0;
   tid_t tid;
-  
 
-  /* Make a copy of arguments.
+  /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
   fn_copy = palloc_get_page (0);
   if (fn_copy == NULL)
     return TID_ERROR;
-  strlcpy (fn_copy, program_args, PGSIZE);
-
-  file_name = strtok(program_args, ' ');
-  throwaway = strtok(program_args, ' ');
-  while(throwaway != NULL && arg_index < 16){
-    args[arg_index] = throwaway;
-    throwaway = strtok(program_args, ' ');
-    arg_index++;
-  }
-
-  //TODO push each argument from aux onto user stack, how do? must implement user memory first? :P
-  //palloc_get_page:  palloc flag 004 indicates user page
+  strlcpy (fn_copy, file_name, PGSIZE);
 
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
@@ -68,7 +50,29 @@ process_execute (const char *program_args)
 static void
 start_process (void *file_name_)
 {
-  char *file_name = file_name_;
+  char *throwaway;
+  char *arg;
+  char ** args;
+  char *file_name;
+  int arg_index = 0;
+
+  user_program user_prog;
+
+  /* extracts file name and arguments using strtok_r; first get file name, then up to 16 arguments separated by spaces*/
+  file_name = strtok_r(file_name_, " ", &throwaway);
+  arg = strtok_r(NULL, " ", &throwaway);
+  while(arg != NULL && arg_index < 16){
+    args[arg_index] = arg;
+    arg = strtok_r(NULL, " ", &throwaway);
+    arg_index++;
+  }
+
+  user_prog.args = args;
+  user_prog.file_name = file_name;
+  user_prog.arg_count = arg_index;
+
+  //palloc_get_page:  palloc flag 004 indicates user page
+
   struct intr_frame if_;
   bool success;
 
@@ -77,7 +81,7 @@ start_process (void *file_name_)
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
-  success = load (file_name, &if_.eip, &if_.esp);
+  success = load (user_prog, &if_.eip, &if_.esp);
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
@@ -224,7 +228,7 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
    and its initial stack pointer into *ESP.
    Returns true if successful, false otherwise. */
 bool
-load (const char *file_name, void (**eip) (void), void **esp) 
+load (user_program user_prog, void (**eip) (void), void **esp)
 {
   struct thread *t = thread_current ();
   struct Elf32_Ehdr ehdr;
@@ -240,7 +244,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   process_activate ();
 
   /* Open executable file. */
-  file = filesys_open (file_name);
+  file = filesys_open (user_prog.file_name);
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", file_name);
@@ -256,7 +260,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
       || ehdr.e_phentsize != sizeof (struct Elf32_Phdr)
       || ehdr.e_phnum > 1024) 
     {
-      printf ("load: %s: error loading executable\n", file_name);
+      printf ("load: %s: error loading executable\n", user_prog.file_name);
       goto done; 
     }
 
@@ -320,7 +324,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
     }
 
   /* Set up stack. */
-  if (!setup_stack (esp))
+  if (!setup_stack (user_prog, esp))
     goto done;
 
   /* Start address. */
@@ -445,7 +449,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 /* Create a minimal stack by mapping a zeroed page at the top of
    user virtual memory. */
 static bool
-setup_stack (void **esp) 
+setup_stack (user_program user_prog, void **esp)
 {
   uint8_t *kpage;
   bool success = false;
@@ -455,9 +459,35 @@ setup_stack (void **esp)
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success)
-        *esp = PHYS_BASE -12;
+        *esp = PHYS_BASE;
       else
         palloc_free_page (kpage);
+
+      /*
+       * push each value of args[] to stack:
+       * for each argument in args (order doesn't matter because array referencing) decrement the stack pointer by size_of arg[n]
+       * push arg[n] at esp one byte at a time using:
+       *    put_user (uint8_t *udst, uint8_t byte)
+       *      { int error_code;
+       *        asm ("movl $1f, %0; movb %b2, %1; 1:"
+       *                : "=:&a" (error code), "+m" (*udst) : "q" (byte));
+       *        return error_code != -1;
+       *      }
+       */
+
+      //push word align
+      //add null pointer sentinel as args.arg_count
+      //decrement by size of args
+      //push args[] onto stack (pointer array, not values)
+      //      how does an array mapping work with user memory get/put & arrays???
+      //            possibly just re-declare array as iterating through args[] values, wtf
+      //push arg_count as argc
+      //push return address:
+
+      //print some memorys. donknow if using right, maybe should just be checking with get_user memory value
+      hex_dump((uintptr_t )esp, esp, 64,true);
+      hex_dump((uintptr_t )_args, _args, 64,true);
+
     }
   return success;
 }
