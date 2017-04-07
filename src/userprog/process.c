@@ -474,7 +474,10 @@ setup_stack (user_program user_prog, void **esp)
        *        return error_code != -1;
        *      }
        */
-
+      for (int i = user_prog.arg_count - 1; i >= 0; --i) {
+          char *arg = user_prog.args[i];
+          for (bool _success = true; )
+      }
       //push word align
       //add null pointer sentinel as args.arg_count
       //decrement by size of args
