@@ -19,7 +19,7 @@
 #include "threads/vaddr.h"
 
 static thread_func start_process NO_RETURN;
-static bool load (user_program user_prog, void (**eip) (void), void **esp);
+static bool load (struct user_program user_prog, void (**eip) (void), void **esp);
 
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
@@ -56,7 +56,7 @@ start_process (void *file_name_)
   char *file_name;
   int arg_index = 0;
 
-  user_program user_prog;
+  struct user_program user_prog;
 
   /* extracts file name and arguments using strtok_r; first get file name, then up to 16 arguments separated by spaces*/
   file_name = strtok_r(file_name_, " ", &throwaway);
@@ -217,7 +217,7 @@ struct Elf32_Phdr
 #define PF_W 2          /* Writable. */
 #define PF_R 4          /* Readable. */
 
-static bool setup_stack (void **esp);
+static bool setup_stack (struct user_program user_prog, void **esp);
 static bool validate_segment (const struct Elf32_Phdr *, struct file *);
 static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
                           uint32_t read_bytes, uint32_t zero_bytes,
@@ -228,7 +228,7 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
    and its initial stack pointer into *ESP.
    Returns true if successful, false otherwise. */
 bool
-load (user_program user_prog, void (**eip) (void), void **esp)
+load (struct user_program user_prog, void (**eip) (void), void **esp)
 {
   struct thread *t = thread_current ();
   struct Elf32_Ehdr ehdr;
@@ -247,7 +247,7 @@ load (user_program user_prog, void (**eip) (void), void **esp)
   file = filesys_open (user_prog.file_name);
   if (file == NULL) 
     {
-      printf ("load: %s: open failed\n", file_name);
+      printf ("load: %s: open failed\n", user_prog.file_name);
       goto done; 
     }
 
@@ -449,7 +449,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 /* Create a minimal stack by mapping a zeroed page at the top of
    user virtual memory. */
 static bool
-setup_stack (user_program user_prog, void **esp)
+setup_stack (struct user_program user_prog, void **esp)
 {
   uint8_t *kpage;
   bool success = false;
@@ -486,7 +486,6 @@ setup_stack (user_program user_prog, void **esp)
 
       //print some memorys. donknow if using right, maybe should just be checking with get_user memory value
       hex_dump((uintptr_t )esp, esp, 64,true);
-      hex_dump((uintptr_t )_args, _args, 64,true);
 
     }
   return success;
