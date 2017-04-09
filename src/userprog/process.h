@@ -8,7 +8,7 @@ int process_wait (tid_t);
 void process_exit (void);
 void process_activate (void);
 
-typedef struct user_program{
+struct user_program{
   const char *file_name;
   char **args;
   int arg_count;
