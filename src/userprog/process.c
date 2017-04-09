@@ -19,12 +19,15 @@
 #include "threads/vaddr.h"
 
 static thread_func start_process NO_RETURN;
-static bool load (struct user_program user_prog, void (**eip) (void), void **esp);
+static bool load (user_program *p_user_prog, void (**eip) (void), void **esp);
 
-/* Starts a new thread running a user program loaded from
-   FILENAME.  The new thread may be scheduled (and may even exit)
-   before process_execute() returns.  Returns the new process's
-   thread id, or TID_ERROR if the thread cannot be created. */
+/***********************************************************************************************************************
+MODIFIED BY SHAWN JOHNSON AND LENA BANKS
+
+
+Starts a new thread running a user program loaded from FILENAME.  The new thread may be scheduled (and may even exit)
+before process_execute() returns.  Returns the new process's thread id, or TID_ERROR if the thread cannot be created.
+***********************************************************************************************************************/
 tid_t
 process_execute (const char *file_name)
 {
@@ -45,18 +48,24 @@ process_execute (const char *file_name)
   return tid;
 }
 
-/* A thread function that loads a user process and starts it
-   running. */
+/***********************************************************************************************************************
+MODIFIED BY SHAWN JOHNSON AND LENA BANKS
+
+A thread function that loads a user process and starts it running.
+***********************************************************************************************************************/
 static void
 start_process (void *file_name_)
 {
+//**********************************************************************************************************************
+//MODIFIED BY SHAWN JOHNSON AND LENA BANKS
   char *throwaway;
   char *arg;
   char ** args;
   char *file_name;
   int arg_index = 0;
 
-  struct user_program user_prog;
+  user_program user_prog;
+  user_program *pup = &user_prog;
 
   /* extracts file name and arguments using strtok_r; first get file name, then up to 16 arguments separated by spaces*/
   file_name = strtok_r(file_name_, " ", &throwaway);
@@ -72,6 +81,7 @@ start_process (void *file_name_)
   user_prog.arg_count = arg_index;
 
   //palloc_get_page:  palloc flag 004 indicates user page
+//**********************************************************************************************************************
 
   struct intr_frame if_;
   bool success;
@@ -81,7 +91,7 @@ start_process (void *file_name_)
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
-  success = load (user_prog, &if_.eip, &if_.esp);
+  success = load (pup, &if_.eip, &if_.esp);
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
@@ -217,7 +227,7 @@ struct Elf32_Phdr
 #define PF_W 2          /* Writable. */
 #define PF_R 4          /* Readable. */
 
-static bool setup_stack (struct user_program user_prog, void **esp);
+static bool setup_stack (user_program user_prog, void **esp);
 static bool validate_segment (const struct Elf32_Phdr *, struct file *);
 static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
                           uint32_t read_bytes, uint32_t zero_bytes,
@@ -228,7 +238,7 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
    and its initial stack pointer into *ESP.
    Returns true if successful, false otherwise. */
 bool
-load (struct user_program user_prog, void (**eip) (void), void **esp)
+load (user_program *p_user_prog, void (**eip) (void), void **esp)
 {
   struct thread *t = thread_current ();
   struct Elf32_Ehdr ehdr;
@@ -244,10 +254,10 @@ load (struct user_program user_prog, void (**eip) (void), void **esp)
   process_activate ();
 
   /* Open executable file. */
-  file = filesys_open (user_prog.file_name);
+  file = filesys_open ((*p_user_prog).file_name);
   if (file == NULL) 
     {
-      printf ("load: %s: open failed\n", user_prog.file_name);
+      printf ("load: %s: open failed\n", (*p_user_prog).file_name);
       goto done; 
     }
 
@@ -260,7 +270,7 @@ load (struct user_program user_prog, void (**eip) (void), void **esp)
       || ehdr.e_phentsize != sizeof (struct Elf32_Phdr)
       || ehdr.e_phnum > 1024) 
     {
-      printf ("load: %s: error loading executable\n", user_prog.file_name);
+      printf ("load: %s: error loading executable\n", (*p_user_prog).file_name);
       goto done; 
     }
 
@@ -324,7 +334,7 @@ load (struct user_program user_prog, void (**eip) (void), void **esp)
     }
 
   /* Set up stack. */
-  if (!setup_stack (user_prog, esp))
+  if (!setup_stack (p_user_prog, esp))
     goto done;
 
   /* Start address. */
@@ -446,10 +456,13 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
   return true;
 }
 
-/* Create a minimal stack by mapping a zeroed page at the top of
-   user virtual memory. */
+/***********************************************************************************************************************
+MODIFIED BY SHAWN JOHNSON AND LENA BANKS
+
+Create a minimal stack by mapping a zeroed page at the top of user virtual memory.
+***********************************************************************************************************************/
 static bool
-setup_stack (struct user_program user_prog, void **esp)
+setup_stack (user_program *user_prog, void **esp)
 {
   uint8_t *kpage;
   bool success = false;
@@ -460,36 +473,93 @@ setup_stack (struct user_program user_prog, void **esp)
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success)
         *esp = PHYS_BASE;
-      else
-        palloc_free_page (kpage);
-
-      /*
-       * push each value of args[] to stack:
-       * for each argument in args (order doesn't matter because array referencing) decrement the stack pointer by size_of arg[n]
-       * push arg[n] at esp one byte at a time using:
-       *    put_user (uint8_t *udst, uint8_t byte)
-       *      { int error_code;
-       *        asm ("movl $1f, %0; movb %b2, %1; 1:"
-       *                : "=:&a" (error code), "+m" (*udst) : "q" (byte));
-       *        return error_code != -1;
-       *      }
-       */
-      for (int i = user_prog.arg_count - 1; i >= 0; --i) {
-          char *arg = user_prog.args[i];
-          for (bool _success = true; )
+      else {
+        palloc_free_page(kpage);
+        return success;
       }
-      //push word align
-      //add null pointer sentinel as args.arg_count
-      //decrement by size of args
-      //push args[] onto stack (pointer array, not values)
-      //      how does an array mapping work with user memory get/put & arrays???
-      //            possibly just re-declare array as iterating through args[] values, wtf
-      //push arg_count as argc
-      //push return address:
+//**********************************************************************************************************************
+//MODIFIED BY SHAWN JOHNSON AND LENA BANKS
+      unsigned int num_bytes = 0;
+      char *throwaway = NULL;
+      char *arg = NULL;
+      unsigned int arg_index = 0;
 
-      //print some memorys. donknow if using right, maybe should just be checking with get_user memory value
-      hex_dump((uintptr_t )esp, esp, 64,true);
 
+      // Extracts file name and arguments using strtok_r; first get file name,
+      // then up to 16 arguments separated by spaces
+      /*
+      file_name = strtok_r(cmd, " ", &throwaway);
+      arg = strtok_r(NULL, " ", &throwaway);
+      while(arg != NULL && arg_index < 16){
+          user_prog.args[arg_index] = arg;
+          arg = strtok_r(NULL, " ", &throwaway);
+          arg_index++;
+      }
+
+
+      user_prog.file_name = file_name;
+      user_prog.arg_count = arg_index;
+      */
+
+      void *save_ptr = *esp;
+      //printf("Push strings\n");
+      for (int i = (*user_prog).arg_count - 1; i >= 0; --i) {
+        size_t len = strlen((*user_prog).args[i]) + 1;
+        *esp -= len;
+        strlcpy(*esp, (*user_prog).args[i], len);
+        //printf("Reference to argv[%d] : 0x%llx \n", i + 1, (unsigned long long) *vp);
+        num_bytes += (unsigned int) len;
+      }
+
+      *esp -= strlen((*user_prog).file_name) + 1;
+      strlcpy(*esp, (*user_prog).file_name, strlen((*user_prog).file_name) + 1);
+      //printf("Reference to argv[0] : 0x%llx \n", (unsigned long long) *vp);
+
+      num_bytes += strlen((*user_prog).file_name) + 1;
+      unsigned int align = num_bytes % 4;
+
+      if (align > 0) {
+        //printf("Word align\n");
+        for (unsigned int i = 0; i < align; ++i) {
+          *esp -= sizeof(NULL_BYTE);
+          memset(*esp, NULL_BYTE, sizeof(NULL_BYTE));
+        }
+      }
+
+      //printf("Push null\n");
+      *esp -= sizeof(char *);
+      memset(*esp, 0, sizeof(char *));
+
+      //printf("Push string pointers\n");
+      for (int i = (*user_prog).arg_count - 1; i >= 0; --i) {
+        *esp -= sizeof(char *);
+        save_ptr -= strlen((*user_prog).args[i]) + 1;
+        memcpy(*esp, &save_ptr, sizeof(char *));
+        //printf("Pointer to argv[%d]: %llx : %llx \n", i + 1, (unsigned long long) *vp, (unsigned long long) save_ptr);
+      }
+
+      *esp -= sizeof(char *);
+      save_ptr -= strlen((*user_prog).file_name) + 1;
+      memcpy(*esp, &save_ptr, sizeof(char *));
+      //printf("Pointer to argv[0]: 0x%llx : 0x%llx \n", (unsigned long long) *vp, (unsigned long long) save_ptr);
+
+
+      //printf("Push pointer to argv[0] pointer\n");
+      save_ptr = *esp;
+      *esp -= sizeof(char **);
+      memcpy(*esp, save_ptr, sizeof(char **));
+      //printf("Argv: Pointer to argv[0] pointer: 0x%llx : 0x%llx \n", (unsigned long long) *vp, (unsigned long long) save_ptr);
+
+      //printf("Push argc\n");
+      *esp -= sizeof(unsigned int);
+      memcpy(*esp, &(*user_prog).arg_count, sizeof(unsigned long long));
+      //printf("Argc: 0x%llx : %d \n", (unsigned long long) *vp, *((unsigned int *)*vp));
+
+      //printf("Push fake return address\n");
+      *esp -= sizeof(void (*) ());
+      memset(*esp, 0, sizeof(void (*) ()));
+
+//**********************************************************************************************************************
     }
   return success;
 }

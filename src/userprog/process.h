@@ -3,15 +3,18 @@
 
 #include "threads/thread.h"
 
+#define NULL_BYTE ((uint8_t) 0) //ADDED BY SHAWN JOHNSON
+
 tid_t process_execute (const char *file_name);
 int process_wait (tid_t);
 void process_exit (void);
 void process_activate (void);
 
-struct user_program{
+//ADDED BY SHAWN JOHNSON AND LENA BANKS
+typedef struct {
   const char *file_name;
-  char **args;
+  char *args[16];
   int arg_count;
-};
+} user_program;
 
 #endif /* userprog/process.h */
