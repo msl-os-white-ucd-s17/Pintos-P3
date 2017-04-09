@@ -4,6 +4,8 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
+#include <kernel/list.h>
+#include <threads/synch.h>
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -100,7 +102,27 @@ struct thread
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
+
+		/* ADDED BY STEFANI MOORE */
+
+		struct thread *parent_thread;				/* Parent thread */
+		struct semaphore child_sema;				/* Child lock */
+		struct list child_processes;				/* lIst of child processes */
+		bool success;												/* Used to track status of the process */
+		int arg_count;											/* Argument count */
+		int waiting_on_thread;							/* Holds tid of the thread that we are waiting for */
+		int exit_status;										/* Used to determine if there was an error during execution and if an exit is required */
+
   };
+
+	/* ADDED BY STEFANI MOORE */
+	struct child_kernel_thread {
+		int tid;														/* Thread identifier */
+		struct list_elem elem;							/* Shared list element */
+		bool was_used;											/* Was the thread used */
+		int exit_status;										/* Did it execute successfully or do we need to exit? */
+
+	};
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
