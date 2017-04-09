@@ -552,7 +552,7 @@ setup_stack (user_program *user_prog, void **esp)
 
       //printf("Push argc\n");
       *esp -= sizeof(unsigned int);
-      memcpy(*esp, &(*user_prog).arg_count, sizeof(unsigned long long));
+      memcpy(*esp, &(*user_prog).arg_count, sizeof(int));
       //printf("Argc: 0x%llx : %d \n", (unsigned long long) *vp, *((unsigned int *)*vp));
 
       //printf("Push fake return address\n");
