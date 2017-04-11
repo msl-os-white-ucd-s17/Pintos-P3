@@ -25,6 +25,13 @@ static bool load (const char *cmdline, void (**eip) (void), void **esp);
 struct list lists;	/* List of all lists */
 #define DELIMITER " "
 
+static struct child_exec {
+	bool succes;			/*  */
+	char* cmd_line; 		/*  */
+	struct child_parent *child_ptr;	/*  */
+	semaphore child_loaded;		/*  */
+};
+
 /***********************************************************************************************************************
 MODIFIED BY SHAWN JOHNSON AND LENA BANKS AND STEFANI MOORE
 Starts a new thread running a user program loaded from FILENAME.  The new thread may be scheduled (and may even exit)
