@@ -3,7 +3,7 @@
 
 #include "threads/thread.h"
 
-#define NULL_BYTE ((uint8_t) 0) //ADDED BY SHAWN JOHNSON
+#define NULL_BYTE ((char) 0) //ADDED BY SHAWN JOHNSON
 
 tid_t process_execute (const char *file_name);
 int process_wait (tid_t);

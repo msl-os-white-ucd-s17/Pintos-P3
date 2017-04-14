@@ -19,11 +19,10 @@
 #include "threads/vaddr.h"
 
 static thread_func start_process NO_RETURN;
-static bool load (const char *cmdline, void (**eip) (void), void **esp);
+static bool load (user_program *p_user_prog, void (**eip) (void), void **esp);
 
 /* ADDED BY STEFANI MOORE */
 struct list lists;	/* List of all lists */
-#define DELIMITER " "
 
 static struct child_exec {
 	bool succes;			/*  */
@@ -44,13 +43,10 @@ Using fn_name to maintain the integrity of the file_name string
 tid_t
 process_execute (const char *file_name) 
 {
-  char *fn_copy;
+  char *fn_copy = NULL;
   tid_t tid;
-
-	/* ADDED BY STEFANI MOORE */
-	char *fn_name, *save_ptr;
-	size_t string_len = strlen(file_name)+1;
-
+  char *save_ptr = NULL;
+  char *fn_name = NULL;
 
 
   /* Make a copy of FILE_NAME.
@@ -58,16 +54,15 @@ process_execute (const char *file_name)
   fn_copy = palloc_get_page (0);
   if (fn_copy == NULL)
     return TID_ERROR;
-	strlcpy (fn_copy, file_name, PGSIZE);
+  strlcpy (fn_copy, file_name, PGSIZE);
+  fn_name = (char *) malloc(strlen(file_name) + 1);
+  strlcpy(fn_name, file_name, strlen(file_name)+1);
 
-	/* ADDED BY STEFANI MOORE */
-	fn_name = malloc(string_len);
-  strlcpy (fn_name, file_name, string_len);
-	fn_name = strtok_r (fn_name, DELIMITER, &save_ptr);
-
+  char *arg = strtok_r(fn_name, " ", &save_ptr);
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (fn_name, PRI_DEFAULT, start_process, fn_copy);
-	free (fn_name);
+  tid = thread_create (arg, PRI_DEFAULT, start_process, fn_copy);
+  free (fn_name);
+
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
 
@@ -92,13 +87,34 @@ start_process (void *file_name_)
 {
   //**********************************************************************************************************************
 //MODIFIED BY SHAWN JOHNSON AND LENA BANKS
-  //char *throwaway;
-  //char *arg;
-  //char ** args;
+  char *throwaway;
+  char *arg;
+  char *cpy;
+  char *save_ptr;
   char *file_name = file_name_;
- // int arg_index = 0;
+  int arg_index = 0;
 
-	bool success;
+  user_program user_prog;
+  user_program *pup = &user_prog;
+
+  /* extracts file name and arguments using strtok_r; first get file name, then up to 16 arguments separated by spaces*/
+  file_name = strtok_r(file_name_, " ", &throwaway);
+  cpy = (char *) malloc(strlen(arg)+1);
+  strlcpy(cpy, arg, strlen(arg)+1);
+  user_prog.file_name = cpy;
+  arg = strtok_r(cpy, " ", &save_ptr);
+  while(arg != NULL && arg_index < 16){
+    cpy = (char *) malloc(strlen(arg)+1);
+    strlcpy(cpy, arg, strlen(arg)+1);
+    user_prog.args[arg_index] = cpy;
+    arg = strtok_r(NULL, " ", &save_ptr);
+    arg_index++;
+  }
+
+
+  user_prog.arg_count = arg_index;
+
+  bool success;
   struct intr_frame if_;
 
   /* Initialize interrupt frame and load executable. */
@@ -106,7 +122,7 @@ start_process (void *file_name_)
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
-  success = load (file_name, &if_.eip, &if_.esp);
+  success = load (pup, &if_.eip, &if_.esp);
 
  	/* If load failed, quit. */
   palloc_free_page (file_name);
@@ -122,22 +138,7 @@ start_process (void *file_name_)
 
 
 	// Parsing occures in execution
-  //user_program user_prog;
- // user_program *pup = &user_prog;
-
-  /* extracts file name and arguments using strtok_r; first get file name, then up to 16 arguments separated by spaces*/
- /* file_name = strtok_r(file_name_, " ", &throwaway);
-  arg = strtok_r(NULL, " ", &throwaway);
-  while(arg != NULL && arg_index < 16){
-    args[arg_index] = arg;
-    arg = strtok_r(NULL, " ", &throwaway);
-    arg_index++;
-  }
-
-  user_prog.args = args;
-  user_prog.file_name = file_name;
-  user_prog.arg_count = arg_index;*/
-
+  
   //palloc_get_page:  palloc flag 004 indicates user page
 //**********************************************************************************************************************
  
@@ -311,7 +312,7 @@ struct Elf32_Phdr
 #define PF_W 2          /* Writable. */
 #define PF_R 4          /* Readable. */
 
-static bool setup_stack (void **esp, char * file_name);
+static bool setup_stack (user_program *p_user_prog, void **esp);
 static bool validate_segment (const struct Elf32_Phdr *, struct file *);
 static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
                           uint32_t read_bytes, uint32_t zero_bytes,
@@ -324,7 +325,7 @@ void proc_exit (int status);
    and its initial stack pointer into *ESP.
    Returns true if successful, false otherwise. */
 bool
-load (const char *file_name, void (**eip) (void), void **esp) 
+load (user_program *p_user_prog, void (**eip) (void), void **esp) 
 {
   struct thread *t = thread_current ();
   struct Elf32_Ehdr ehdr;
@@ -339,22 +340,12 @@ load (const char *file_name, void (**eip) (void), void **esp)
     goto done;
   process_activate ();
 
-  /* Open executable file. */
+  file = filesys_open ((*p_user_prog).file_name);
 
-	/* ADDED BY STEFANI MOORE */
-	char *fn_cpy = malloc (strlen(file_name)+1);
-	strlcpy (fn_cpy, file_name, strlen(file_name)+1);
-
-	char * save_ptr;
-	fn_cpy = strtok_r (fn_cpy, DELIMITER, &save_ptr);
-
-  file = filesys_open (file_name);
-
-	free (fn_cpy);
 
   if (file == NULL) 
     {
-      printf ("load: %s: open failed\n", file_name);
+      printf ("load: %s: open failed\n", (*p_user_prog).file_name);
       goto done; 
     }
 
@@ -367,7 +358,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
       || ehdr.e_phentsize != sizeof (struct Elf32_Phdr)
       || ehdr.e_phnum > 1024) 
     {
-      printf ("load: %s: error loading executable\n", file_name);
+      printf ("load: %s: error loading executable\n", (*p_user_prog).file_name);
       goto done; 
     }
 
@@ -431,7 +422,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
     }
 
   /* Set up stack. */
-  if (!setup_stack (esp, file_name))
+  if (!setup_stack (p_user_prog, esp))
     goto done;
 
   /* Start address. */
@@ -557,7 +548,7 @@ MODIFIED BY SHAWN JOHNSON AND LENA BANKS
 Create a minimal stack by mapping a zeroed page at the top of user virtual memory.
 ***********************************************************************************************************************/
 static bool
-setup_stack (void **esp, char *file_name) 
+setup_stack (user_program *user_prog, void **esp) 
 {
    uint8_t *kpage;
   bool success = false;
@@ -574,96 +565,33 @@ setup_stack (void **esp, char *file_name)
       }
 //**********************************************************************************************************************
 //MODIFIED BY SHAWN JOHNSON AND LENA BANKS AND STEFANI MOORE
-      unsigned int num_bytes = 0;
-      //char *throwaway = NULL;
-			char *save_ptr;
+
+      int num_bytes = 0;
+      char *throwaway = NULL;
       char *arg = NULL;
-      unsigned int arg_index = 0, i;
-			size_t str_len = strlen(file_name)+1;
 
 
       // Extracts file name and arguments using strtok_r; first get file name,
       // then up to 16 arguments separated by spaces
-      /*
-      file_name = strtok_r(cmd, " ", &throwaway);
-      arg = strtok_r(NULL, " ", &throwaway);
-      while(arg != NULL && arg_index < 16){
-          user_prog.args[arg_index] = arg;
-          arg = strtok_r(NULL, " ", &throwaway);
-          arg_index++;
-      }
-      user_prog.file_name = file_name;
-      user_prog.arg_count = arg_index;
-      */
-
-			char * cpy = malloc(str_len);
-			strlcpy (cpy, file_name, str_len);
-
-			for(arg = strtok_r (cpy, DELIMITER, *save_ptr); arg != NULL; arg = strtok_r (NULL, DELIMITER, &save_ptr))
-				arg_index++;
-
-			int *argv = calloc (arg_index, sizeof(int));
-
-			for (arg = strtok_r (file_name, DELIMITER, &save_ptr), i=0; arg != NULL; arg = strtok_r (NULL, DELIMITER, &save_ptr), i++)
-			{
-					*esp -= strlen(arg) +1;
-					memcpy (*esp,arg,strlen(arg) + 1);
-
-					argv[i] =*esp;
-			}
-
-			while ((int)*esp&4!=0)
-			{
-					*esp -= sizeof(char);
-					char c = 0;
-					memcpy (*esp,&c,sizeof(char));
-			}
-
-
-			int z = 0;
-
-		*esp -=sizeof(int);
-		memcpy(*esp,&z,sizeof(int));
-
-		for(i=arg_index-1;i>=0;i--)
-		{
-			*esp -= sizeof(int);
-			memcpy (*esp, &argv[i],sizeof(int));
-		}
-
-		int ptr = *esp;
-
-		*esp -= sizeof(int);
-		memcpy(*esp,&ptr,sizeof(int));
 	
-		*esp-=sizeof(int);
-		memcpy(*esp,&arg_index,sizeof(int));
-	
-		*esp-=sizeof(int);
-		memcpy(*esp,&z,sizeof(int));
+      void *save_ptr = *esp;
 
-		free(cpy);
-		free(argv);
-
-     // void *save_ptr = *esp;
       //printf("Push strings\n");
-      /*for (int i = (*user_prog).arg_count - 1; i >= 0; --i) {
+      for (int i = (*user_prog).arg_count - 1; i >= 0; --i) {
         size_t len = strlen((*user_prog).args[i]) + 1;
         *esp -= len;
         strlcpy(*esp, (*user_prog).args[i], len);
         //printf("Reference to argv[%d] : 0x%llx \n", i + 1, (unsigned long long) *vp);
-        num_bytes += (unsigned int) len;
-      }*/
+        num_bytes += (int) len;
+      }
 
-     // *esp -= strlen((*user_prog).file_name) + 1;
-    //  strlcpy(*esp, (*user_prog).file_name, strlen((*user_prog).file_name) + 1);
+     *esp -= strlen((*user_prog).file_name) + 1;
+     strlcpy(*esp, (*user_prog).file_name, strlen((*user_prog).file_name) + 1);
       //printf("Reference to argv[0] : 0x%llx \n", (unsigned long long) *vp);
 
 
-			
-
-    /*  num_bytes += strlen((*user_prog).file_name) + 1;
-      unsigned int align = num_bytes % 4;
+    num_bytes += strlen((*user_prog).file_name) + 1;
+    int align = num_bytes % 4;
 
       if (align > 0) {
         //printf("Word align\n");
@@ -688,7 +616,7 @@ setup_stack (void **esp, char *file_name)
       *esp -= sizeof(char *);
       save_ptr -= strlen((*user_prog).file_name) + 1;
       memcpy(*esp, &save_ptr, sizeof(char *));
-      //printf("Pointer to argv[0]: 0x%llx : 0x%llx \n", (unsigned long long) *vp, (unsigned long long) save_ptr);
+      //printf("Pointer to argv[0]: 0x%llx : 0x%llx \n", (unsigned int) *vp, (unsigned long long) save_ptr);
 
 
       //printf("Push pointer to argv[0] pointer\n");
@@ -704,7 +632,7 @@ setup_stack (void **esp, char *file_name)
 
       //printf("Push fake return address\n");
       *esp -= sizeof(void (*) ());
-      memset(*esp, 0, sizeof(void (*) ()));*/
+      memset(*esp, 0, sizeof(void (*) ()));
 
 //**********************************************************************************************************************
     }
