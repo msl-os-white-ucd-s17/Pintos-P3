@@ -105,22 +105,24 @@ struct thread
 
 		/* ADDED BY STEFANI MOORE */
 
-		struct thread *parent_thread;				/* Parent thread */
+		struct file* cur_file;
+		struct list files;
+		struct thread *parent;							/* Parent thread */
 		struct semaphore child_sema;				/* Child lock */
-		struct list child_processes;				/* lIst of child processes */
+		struct list child_processes;				/* List of child processes */
 		bool success;												/* Used to track status of the process */
-		int arg_count;											/* Argument count */
-		int waiting_on_thread;							/* Holds tid of the thread that we are waiting for */
-		int exit_status;										/* Used to determine if there was an error during execution and if an exit is required */
+		int fid_count;											/* File descriptor count */
+		int waiting_on_thread;							/* Thread tid we are waiting on */
+		int exit_code;							   			/* Exit code */
 
   };
 
 	/* ADDED BY STEFANI MOORE */
-	struct child_kernel_thread {
+	struct child_parent {
 		int tid;														/* Thread identifier */
 		struct list_elem elem;							/* Shared list element */
-		bool was_used;											/* Was the thread used */
-		int exit_status;										/* Did it execute successfully or do we need to exit? */
+		bool has_exited;										/* Was the thread used */
+		int exit_code;										  /* Exit Code */
 
 	};
 

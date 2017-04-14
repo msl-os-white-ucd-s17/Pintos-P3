@@ -21,15 +21,7 @@
 static thread_func start_process NO_RETURN;
 static bool load (user_program *p_user_prog, void (**eip) (void), void **esp);
 
-/* ADDED BY STEFANI MOORE */
-struct list lists;	/* List of all lists */
-
-static struct child_exec {
-	bool succes;			/*  */
-	char* cmd_line; 		/*  */
-	struct child_parent *child_ptr;	/*  */
-	semaphore child_loaded;		/*  */
-};
+extern struct list all_list;
 
 /***********************************************************************************************************************
 MODIFIED BY SHAWN JOHNSON AND LENA BANKS AND STEFANI MOORE
@@ -43,6 +35,8 @@ Using fn_name to maintain the integrity of the file_name string
 tid_t
 process_execute (const char *file_name) 
 {
+
+		printf("In process execute");
   char *fn_copy = NULL;
   tid_t tid;
   char *save_ptr = NULL;
@@ -55,12 +49,18 @@ process_execute (const char *file_name)
   if (fn_copy == NULL)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
+
+	/* Allocate mem and create copy of file_name */
   fn_name = (char *) malloc(strlen(file_name) + 1);
   strlcpy(fn_name, file_name, strlen(file_name)+1);
 
+	/* Extract fn_name from cmd line string */
   char *arg = strtok_r(fn_name, " ", &save_ptr);
+
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (arg, PRI_DEFAULT, start_process, fn_copy);
+
+	/* Free allocated memory */
   free (fn_name);
 
   if (tid == TID_ERROR)
@@ -85,8 +85,9 @@ If the prcoess does not start successfully must set bool success of thread struc
 static void
 start_process (void *file_name_)
 {
+printf("In start process");
   //**********************************************************************************************************************
-//MODIFIED BY SHAWN JOHNSON AND LENA BANKS
+//MODIFIED BY SHAWN JOHNSON, STEFANI MOORE, AND LENA BANKS
   char *throwaway;
   char *arg;
   char *cpy;
@@ -94,6 +95,7 @@ start_process (void *file_name_)
   char *file_name = file_name_;
   int arg_index = 0;
 
+	/* user_program struct stores file_name and arguments */
   user_program user_prog;
   user_program *pup = &user_prog;
 
@@ -127,13 +129,13 @@ start_process (void *file_name_)
  	/* If load failed, quit. */
   palloc_free_page (file_name);
   if (!success) { 
-    thread_current ()->parent_thread->success = false;
-		sema_up (&thread_current ()->parent_thread->child_sema);
+    thread_current ()->parent->success = false;
+		sema_up (&thread_current ()->parent->child_sema);
 		thread_exit ();
 	}
 	else {
-		thread_current ()->parent_thread->success = true;
-		sema_up (&thread_current ()->parent_thread->child_sema);
+		thread_current ()->parent->success = true;
+		sema_up (&thread_current ()->parent->child_sema);
 	}
 
 
@@ -166,14 +168,15 @@ Waits for thread TID to die and returns its exit status.  If
 int
 process_wait (tid_t child_tid) 
 {
+printf("In process wait");
 	/* ADDED BY STEFANI MOORE */
   struct list_elem *e;
-	struct child_kernel_thread * _c = NULL;
+	struct child_parent * _c = NULL;
 	struct list_elem *_e = NULL;
 
 	for (e = list_begin (&thread_current ()->child_processes); e != list_end (&thread_current ()->child_processes); e = list_next (e))
 	{
-			struct child_kernel_thread * c = list_entry (e, struct child_kernel_thread, elem);
+			struct child_parent * c = list_entry (e, struct child_parent, elem);
 			if (c->tid == child_tid)
 			{
 					_c = c;
@@ -186,10 +189,10 @@ process_wait (tid_t child_tid)
 
 	thread_current ()-> waiting_on_thread = _c->tid;
 
-	if (!_c->was_used)
+	if (!_c->has_exited)
 		sema_down (&thread_current ()->child_sema);
 
-	int status = _c->exit_status;
+	int status = _c->exit_code;
 	list_remove(_e);
 
 	return status;
@@ -203,14 +206,15 @@ Free the current process's resources.
 void
 process_exit (void)
 {
+	printf("In process exit");
   struct thread *cur = thread_current ();
   uint32_t *pd;
 
 	/* ADDED BY STEFANI MOORE */
-	if(cur->exit_status == -100)
-			proc_exit(-1);
+	if(cur->exit_code == -100)
+			exit_process_by_code(-1);
 
-	int exit_status = cur->exit_status;
+	int exit_code = cur->exit_code;
 
 	
 	//TODO : Implement closing of all files
@@ -317,8 +321,6 @@ static bool validate_segment (const struct Elf32_Phdr *, struct file *);
 static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
                           uint32_t read_bytes, uint32_t zero_bytes,
                           bool writable);
-/* ADDED BY STEFANI MOORE */
-void proc_exit (int status);
 
 /* Loads an ELF executable from FILE_NAME into the current thread.
    Stores the executable's entry point into *EIP
@@ -657,35 +659,4 @@ install_page (void *upage, void *kpage, bool writable)
      address, then map our page there. */
   return (pagedir_get_page (t->pagedir, upage) == NULL
           && pagedir_set_page (t->pagedir, upage, kpage, writable));
-}
-
-
-/* ADDED BY STEFANI MOORE */
-void 
-proc_exit (int status)
-{
-	struct list_elem *e;
-
-	for(e = list_begin (&thread_current()->parent_thread->child_processes); e != list_end (&thread_current()->parent_thread->child_processes); e = list_next (e))
-	{
-		struct child_kernel_thread *c = list_entry (e, struct  child_kernel_thread, elem);
-		if (c->tid == thread_current ()->tid)
-		{
-			c->was_used = true;
-			c->exit_status = status;
-		}
-
-		thread_current()->exit_status = status;
-
-		if (thread_current ()->parent_thread->waiting_on_thread == thread_current ()->tid)
-			sema_up (&thread_current ()->parent_thread->child_sema);
-
-		thread_exit ();
-
-	}
-
-
-
-
-
 }

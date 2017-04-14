@@ -11,6 +11,7 @@
 #include "threads/switch.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
+#include "threads/malloc.h"
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
@@ -26,7 +27,7 @@ static struct list ready_list;
 
 /* List of all processes.  Processes are added to this list
    when they are first scheduled and removed when they exit. */
-static struct list all_list;
+struct list all_list;
 
 /* Idle thread. */
 static struct thread *idle_thread;
@@ -36,6 +37,24 @@ static struct thread *initial_thread;
 
 /* Lock used by allocate_tid(). */
 static struct lock tid_lock;
+
+void file_lock_release();
+void file_lock_acquire();
+
+/* Global file lock */
+struct lock file_lock;
+
+/* Acquire and Release functions for file_lock */
+void file_lock_acquire()
+{
+	lock_acquire(&file_lock);
+}
+
+void file_lock_release()
+{
+	lock_release(&file_lock);
+}
+
 
 /* Stack frame for kernel_thread(). */
 struct kernel_thread_frame 
@@ -92,6 +111,8 @@ thread_init (void)
   lock_init (&tid_lock);
   list_init (&ready_list);
   list_init (&all_list);
+
+	lock_init(&file_lock);
 
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
@@ -185,10 +206,10 @@ thread_create (const char *name, int priority,
   tid = t->tid = allocate_tid ();
 
 	/* ADDED BY STEFANI MOORE */
-	struct child_kernel_thread *c = malloc(sizeof(*c));
+	struct child_parent *c = malloc(sizeof(*c));
 	c->tid = tid;
-	c->exit_status = t->exit_status;
-	c->was_used = false;
+	c->exit_code = t->exit_code;
+	c->has_exited = false;
 	list_push_back (&running_thread ()->child_processes, &c->elem);
 
 	old_level = intr_disable ();
@@ -297,6 +318,8 @@ thread_exit (void)
 #ifdef USERPROG
   process_exit ();
 #endif
+
+	
 
   /* Remove thread from all threads list, set our status to dying,
      and schedule another process.  That process will destroy us
@@ -480,8 +503,8 @@ init_thread (struct thread *t, const char *name, int priority)
 
 	/* ADDED BY STEFANI MOORE */
 	list_init (&t->child_processes);
-	t->parent_thread = running_thread ();
-	t->arg_count = 2;
+	t->parent = running_thread ();
+	t->fid_count = 2;
 	sema_init (&t->child_sema, 0);
 	t->waiting_on_thread = 0;
 
