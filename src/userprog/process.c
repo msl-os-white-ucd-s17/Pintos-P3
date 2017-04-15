@@ -36,10 +36,10 @@ tid_t
 process_execute (const char *file_name) 
 {
 
-		printf("In process execute");
+  printf("In process execute");
   char *fn_copy = NULL;
   tid_t tid;
-  char *save_ptr = NULL;
+  char *save_ptr;
   char *fn_name = NULL;
 
 
@@ -55,13 +55,13 @@ process_execute (const char *file_name)
   strlcpy(fn_name, file_name, strlen(file_name)+1);
 
 	/* Extract fn_name from cmd line string */
-  char *arg = strtok_r(fn_name, " ", &save_ptr);
+  strtok_r(fn_name, " ", &save_ptr);
 
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (arg, PRI_DEFAULT, start_process, fn_copy);
+  tid = thread_create (fn_name, PRI_DEFAULT, start_process, fn_copy);
 
 	/* Free allocated memory */
-  free (fn_name);
+  //free (fn_name);
 
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
@@ -88,10 +88,10 @@ start_process (void *file_name_)
 printf("In start process");
   //**********************************************************************************************************************
 //MODIFIED BY SHAWN JOHNSON, STEFANI MOORE, AND LENA BANKS
-  char *throwaway;
-  char *arg;
-  char *cpy;
-  char *save_ptr;
+  char *throwaway = NULL;
+  char *arg = NULL;
+  char *cpy = NULL;
+  char *save_ptr = NULL;
   char *file_name = file_name_;
   int arg_index = 0;
 
@@ -100,19 +100,17 @@ printf("In start process");
   user_program *pup = &user_prog;
 
   /* extracts file name and arguments using strtok_r; first get file name, then up to 16 arguments separated by spaces*/
-  file_name = strtok_r(file_name_, " ", &throwaway);
-  cpy = (char *) malloc(strlen(arg)+1);
-  strlcpy(cpy, arg, strlen(arg)+1);
-  user_prog.file_name = cpy;
+  cpy = (char *) malloc(strlen(file_name_)+1);
+  strlcpy(cpy, file_name_, strlen(file_name_)+1);
+  strtok_r(file_name, " ", &throwaway);
+  user_prog.file_name = file_name;
   arg = strtok_r(cpy, " ", &save_ptr);
+  arg = strtok_r(NULL, " ", &save_ptr);
   while(arg != NULL && arg_index < 16){
-    cpy = (char *) malloc(strlen(arg)+1);
-    strlcpy(cpy, arg, strlen(arg)+1);
-    user_prog.args[arg_index] = cpy;
+    user_prog.args[arg_index] = arg;
     arg = strtok_r(NULL, " ", &save_ptr);
     arg_index++;
   }
-
 
   user_prog.arg_count = arg_index;
 
@@ -125,7 +123,7 @@ printf("In start process");
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (pup, &if_.eip, &if_.esp);
-
+  free(cpy);
  	/* If load failed, quit. */
   palloc_free_page (file_name);
   if (!success) { 
@@ -578,61 +576,58 @@ setup_stack (user_program *user_prog, void **esp)
 	
       void *save_ptr = *esp;
 
-      //printf("Push strings\n");
+      printf("Push strings\n");
       for (int i = (*user_prog).arg_count - 1; i >= 0; --i) {
         size_t len = strlen((*user_prog).args[i]) + 1;
         *esp -= len;
         strlcpy(*esp, (*user_prog).args[i], len);
-        //printf("Reference to argv[%d] : 0x%llx \n", i + 1, (unsigned long long) *vp);
+        printf("Reference to argv[%d] : 0x%x \n", i + 1, (unsigned int) *esp);
         num_bytes += (int) len;
       }
 
      *esp -= strlen((*user_prog).file_name) + 1;
      strlcpy(*esp, (*user_prog).file_name, strlen((*user_prog).file_name) + 1);
-      //printf("Reference to argv[0] : 0x%llx \n", (unsigned long long) *vp);
+      printf("Reference to argv[0] : 0x%x \n", (unsigned int) *esp);
 
 
     num_bytes += strlen((*user_prog).file_name) + 1;
-    int align = num_bytes % 4;
-
-      if (align > 0) {
-        //printf("Word align\n");
-        for (unsigned int i = 0; i < align; ++i) {
-          *esp -= sizeof(NULL_BYTE);
-          memset(*esp, NULL_BYTE, sizeof(NULL_BYTE));
-        }
+    int k = 0;
+      for (int j = (num_bytes + k) % 4; j != 0; ++k, j = (num_bytes + k) % 4) {
+        printf("Word align\n");
+	  *esp -= sizeof(NULL_BYTE);
+	  memset(*esp, NULL_BYTE, sizeof(NULL_BYTE));
       }
 
-      //printf("Push null\n");
+      printf("Push null\n");
       *esp -= sizeof(char *);
       memset(*esp, 0, sizeof(char *));
 
-      //printf("Push string pointers\n");
+      printf("Push string pointers\n");
       for (int i = (*user_prog).arg_count - 1; i >= 0; --i) {
         *esp -= sizeof(char *);
         save_ptr -= strlen((*user_prog).args[i]) + 1;
         memcpy(*esp, &save_ptr, sizeof(char *));
-        //printf("Pointer to argv[%d]: %llx : %llx \n", i + 1, (unsigned long long) *vp, (unsigned long long) save_ptr);
+        printf("Pointer to argv[%d]: 0x%x : 0x%x \n", i + 1, (unsigned int) *esp, (unsigned int) save_ptr);
       }
 
       *esp -= sizeof(char *);
       save_ptr -= strlen((*user_prog).file_name) + 1;
       memcpy(*esp, &save_ptr, sizeof(char *));
-      //printf("Pointer to argv[0]: 0x%llx : 0x%llx \n", (unsigned int) *vp, (unsigned long long) save_ptr);
+      printf("Pointer to argv[0]: 0x%x : 0x%x \n", (unsigned int) *esp, (unsigned int) save_ptr);
 
 
-      //printf("Push pointer to argv[0] pointer\n");
+      printf("Push pointer to argv[0] pointer\n");
       save_ptr = *esp;
       *esp -= sizeof(char **);
       memcpy(*esp, save_ptr, sizeof(char **));
-      //printf("Argv: Pointer to argv[0] pointer: 0x%llx : 0x%llx \n", (unsigned long long) *vp, (unsigned long long) save_ptr);
+      printf("Argv: Pointer to argv[0] pointer: 0x%x : 0x%x \n", (unsigned int) *esp, (unsigned int) save_ptr);
 
-      //printf("Push argc\n");
+      printf("Push argc\n");
       *esp -= sizeof(unsigned int);
       memcpy(*esp, &(*user_prog).arg_count, sizeof(int));
-      //printf("Argc: 0x%llx : %d \n", (unsigned long long) *vp, *((unsigned int *)*vp));
+      printf("Argc: 0x%x : %d \n", (unsigned int) *esp, *((unsigned int *) *esp));
 
-      //printf("Push fake return address\n");
+      printf("Push fake return address\n");
       *esp -= sizeof(void (*) ());
       memset(*esp, 0, sizeof(void (*) ()));
 
