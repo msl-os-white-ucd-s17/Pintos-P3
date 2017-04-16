@@ -106,7 +106,8 @@ thread_init (void)
   list_init (&ready_list);
   list_init (&all_list);
 
-	lock_init(&file_lock);
+  // ADDED BY STEFANI MOORE
+  lock_init(&file_lock);
 
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
@@ -186,7 +187,7 @@ thread_create (const char *name, int priority,
   struct switch_entry_frame *ef;
   struct switch_threads_frame *sf;
   tid_t tid;
-	enum intr_level old_level;
+  enum intr_level old_level;
 
   ASSERT (function != NULL);
 
@@ -199,14 +200,14 @@ thread_create (const char *name, int priority,
   init_thread (t, name, priority);
   tid = t->tid = allocate_tid ();
 
-	/* ADDED BY STEFANI MOORE */
-	struct child_parent *c = malloc(sizeof(*c));
-	c->tid = tid;
-	c->exit_code = t->exit_code;
-	c->has_exited = false;
-	list_push_back (&running_thread ()->child_processes, &c->elem);
+  /* ADDED BY STEFANI MOORE & SHAWN JOHNSON */
+  struct child_parent *c = malloc(sizeof(struct child_parent));
+  c->tid = tid;
+  c->exit_code = t->exit_code;
+  c->has_exited = false;
+  list_push_back (&running_thread ()->child_processes, &c->elem); // THIS MAY NEED TO BE `&t->child_processes`
 
-	old_level = intr_disable ();
+  old_level = intr_disable ();
 
   /* Stack frame for kernel_thread(). */
   kf = alloc_frame (t, sizeof *kf);
@@ -223,7 +224,7 @@ thread_create (const char *name, int priority,
   sf->eip = switch_entry;
   sf->ebp = 0;
 
-	intr_set_level (old_level);
+  intr_set_level (old_level);
 
   /* Add to run queue. */
   thread_unblock (t);
@@ -495,12 +496,13 @@ init_thread (struct thread *t, const char *name, int priority)
   t->priority = priority;
   t->magic = THREAD_MAGIC;
 
-	/* ADDED BY STEFANI MOORE */
-	list_init (&t->child_processes);
-	t->parent = running_thread ();
-	t->fid_count = 2;
-	sema_init (&t->child_sema, 0);
-	t->waiting_on_thread = 0;
+  /* ADDED BY STEFANI MOORE & SHAWN JOHNSON */
+  list_init (&t->child_processes);
+  list_init(&t->files);
+  t->parent = running_thread ();
+  t->fid_count = 2;
+  sema_init (&t->child_sema, 0);
+  t->waiting_on_thread = 0;
 
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);

@@ -3,7 +3,6 @@
 #include "user/syscall.h"
 #include "../lib/stdint.h"
 
-void syscall_init (void);
 
 struct user_syscall {
   uint32_t syscall_index;
@@ -12,15 +11,10 @@ struct user_syscall {
   int   arg_count;
 };
 
-//semaphore for determining whether
-enum using_file_system {
-  FILE_SYS_IN_USE = true,
-  FILE_SYS_FREE = false
-};
 
-enum using_file_system is_in_use;
-#endif /* userprog/syscall.h */
 
+void syscall_init (void);
+void exit_process_by_code(int code);
 void halt (void);
 void exit (int status);
 pid_t exec (const char *file);
@@ -44,3 +38,4 @@ bool readdir (int fd, char name[READDIR_MAX_LEN + 1]);
 bool isdir (int fd);
 int inumber (int fd);
  */
+#endif /* userprog/syscall.h */
