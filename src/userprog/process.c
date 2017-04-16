@@ -18,7 +18,6 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 #include "process.h"
-#include "../threads/thread.h"
 
 static thread_func start_process NO_RETURN;
 static bool load(user_program *p_user_prog, void (**eip)(void), void **esp);
@@ -335,7 +334,7 @@ load(user_program *p_user_prog, void (**eip)(void), void **esp) {
         goto done;
     process_activate();
 
-    //TODO : Add filesys lock
+    //TODO :
 
     file = filesys_open((*p_user_prog).file_name);
 
@@ -645,19 +644,8 @@ int process_affix_file(struct file *f) {
         return -1;
     }
     aFile->file_ptr = f;
-    aFile->fid = thread_current()->fid_count++;
+    aFile->fid = ++GLOBAL_FD_INDEX;
+    thread_current()->fid_count++;
     list_push_back(&thread_current()->files, &aFile->elem);
     return aFile->fid;
-}
-
-struct file *process_get_file(int fid) {
-    struct thread *curr_thread = thread_current();
-    for (struct list_elem *e = list_begin(&curr_thread->files); e != list_end(&curr_thread->files);
-            e = list_next(&curr_thread->files)) {
-        struct process_file *procFile = list_entry(e, struct process_file, elem);
-        if (procFile->fid == fid) {
-            return procFile->file_ptr;
-        }
-    }
-    return NULL;
 }
