@@ -653,7 +653,7 @@ int process_affix_file(struct file *f) {
 struct file *process_get_file(int fid) {
     struct thread *curr_thread = thread_current();
     for (struct list_elem *e = list_begin(&curr_thread->files); e != list_end(&curr_thread->files);
-            e = list_next(&curr_thread->files)) {
+            e = list_next(e)) {
         struct process_file *procFile = list_entry(e, struct process_file, elem);
         if (procFile->fid == fid) {
             return procFile->file_ptr;

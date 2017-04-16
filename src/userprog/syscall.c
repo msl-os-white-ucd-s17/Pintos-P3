@@ -288,11 +288,14 @@ syscall_handler(struct intr_frame *f) {
     }
 
     void
-    close(struct list *files, int fid) {
+    close(int fid) {
         struct list_elem *e;
         struct process_file *ff;
-        file_lock_acquire()
-        for (e = list_begin(files); e != list_end(files); e = list_next(e)) {
+        file_lock_acquire();
+
+        struct thread* curr_thread = thread_current();
+
+        for (e = list_begin(&curr_thread->files); e != list_end(&curr_thread->files); e = list_next(e)) {
             ff = list_entry(e, struct process_file, elem);
             if (ff->fid == fid) {
                 file_close(ff->file_ptr);
