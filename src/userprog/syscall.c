@@ -5,9 +5,22 @@
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "threads/malloc.h"
+#include "lib/string.h"
+#include "list.h"
+#include "process.h"
 #include "syscall.h"
 
 static void syscall_handler (struct intr_frame *);
+void exit_process_by_code(int code);
+
+
+struct process_file {
+	struct file* file_ptr;
+	int fid;
+	struct list_elem elem;
+};
+
 
 static int user_memory_ok(uint8_t*, int size);
 static int file_sys_ok();
@@ -55,6 +68,30 @@ static uint32_t get_user_int32(void * stack_pointer){
 
   int32_address = *(uint32_t *)byte_array;
 }
+
+void 
+exit_process_by_code(int code)
+{
+	struct list_elem *e;	
+
+	for (e = list_begin (&thread_current()->parent->child_processes); e != list_end (&thread_current()->parent->child_processes); e = list_next(e))
+	{
+		struct child_parent *c = list_entry (e, struct child_parent, elem);
+		if(c->tid == thread_current()->tid)
+		{
+			c->has_exited = true;
+			c->exit_code = code;
+		}
+	}
+
+	thread_current()->exit_code = code;
+
+	if(thread_current()->parent->waiting_on_thread == thread_current()->tid)
+		sema_up(&thread_current()->parent->child_sema);
+
+	thread_exit();
+}
+
 
 static void
 syscall_handler (struct intr_frame *f) {

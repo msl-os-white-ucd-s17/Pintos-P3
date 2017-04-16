@@ -3,12 +3,14 @@
 
 #include "threads/thread.h"
 
+#define NULL_BYTE ((char) 0) //ADDED BY SHAWN JOHNSON
+
 tid_t process_execute (const char *file_name);
 int process_wait (tid_t);
 void process_exit (void);
 void process_activate (void);
 
-struct user_program{
+struct user_program {
   const char *file_name;
   char **args;
   int arg_count;

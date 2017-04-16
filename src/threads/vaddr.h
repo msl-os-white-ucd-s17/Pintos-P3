@@ -85,9 +85,6 @@ vtop (const void *vaddr)
 
   return (uintptr_t) vaddr - (uintptr_t) PHYS_BASE;
 }
-
-
-
 /*
 Added by Shawn Johnson on 4/5/2017
 Code taken from Pintos manual.
