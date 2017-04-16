@@ -103,28 +103,27 @@ struct thread
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
 
-		/* ADDED BY STEFANI MOORE */
+    /* ADDED BY STEFANI MOORE */
 
-		struct file* cur_file;
-		struct list files;
-		struct thread *parent;							/* Parent thread */
-		struct semaphore child_sema;				/* Child lock */
-		struct list child_processes;				/* List of child processes */
-		bool success;												/* Used to track status of the process */
-		int fid_count;											/* File descriptor count */
-		int waiting_on_thread;							/* Thread tid we are waiting on */
-		int exit_code;							   			/* Exit code */
+    struct file* cur_file;
+    struct list files;
+    struct thread *parent;						/* Parent thread */
+    struct semaphore child_sema;				/* Child lock */
+    struct list child_processes;				/* List of child processes */
+    bool success;								/* Used to track status of the process */
+    int fid_count;								/* File descriptor count */
+    int waiting_on_thread;						/* Thread tid we are waiting on */
+    int exit_code;							   	/* Exit code */
 
   };
 
-	/* ADDED BY STEFANI MOORE */
-	struct child_parent {
-		int tid;														/* Thread identifier */
-		struct list_elem elem;							/* Shared list element */
-		bool has_exited;										/* Was the thread used */
-		int exit_code;										  /* Exit Code */
-
-	};
+/* ADDED BY STEFANI MOORE */
+struct child_parent {
+    int tid;										/* Thread identifier */
+    struct list_elem elem;							/* Shared list element */
+    bool has_exited;								/* Was the thread used */
+    int exit_code;								    /* Exit Code */
+};
 
 
 /* Global file lock */

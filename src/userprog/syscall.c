@@ -8,10 +8,12 @@
 #include "threads/malloc.h"
 #include "lib/string.h"
 #include "list.h"
+#include "filesys/filesys.h"
+#include "filesys/file.h"
 #include "process.h"
 #include "syscall.h"
 
-static void syscall_handler (struct intr_frame *);
+static void syscall_handler (struct intr_frame *f);
 void exit_process_by_code(int code);
 
 
@@ -95,10 +97,10 @@ exit_process_by_code(int code)
 
 static void
 syscall_handler (struct intr_frame *f) {
-  printf("system call!\n");
+  printf("System call!\n");
 
   if (!user_memory_ok(f->esp, 1)){
-    printf("Don't gimme that crap");
+    printf("Don't gimme that crap Lena!");
     thread_exit();
   }
 
@@ -207,8 +209,10 @@ syscall_handler (struct intr_frame *f) {
 
   bool
   create(const char *file, unsigned initial_size) {
-    lock_acquire()
-    return;
+    file_lock_acquire();
+    bool error = filesys_create(file, initial_size);
+    file_lock_release();
+    return error;
   }
 
   bool
