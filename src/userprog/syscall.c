@@ -14,9 +14,13 @@
 #include "syscall.h"
 
 static void syscall_handler(struct intr_frame *f);
+
 static int user_memory_ok(uint8_t *, int size);
+
 static int file_sys_ok();
+
 static uint32_t get_user_int32(void *);
+
 static int get_syscall_args(void *, struct user_syscall *);
 
 
@@ -218,8 +222,7 @@ syscall_handler(struct intr_frame *f) {
         if (oFile == NULL) {
             file_lock_release();
             return -1;
-        }
-        else {
+        } else {
             int fd = process_affix_file(oFile);
             file_lock_release();
             return fd;
@@ -227,8 +230,15 @@ syscall_handler(struct intr_frame *f) {
     }
 
     int
-    filesize(int fd) {
-        return;
+    filesize(int fid) {
+        file_lock_acquire();
+        struct file *fs = process_get_file(fid);
+        int f_size = -1;
+        if (fs != NULL) {
+            f_size = file_length(fs);
+        }
+        file_lock_release();
+        return f_size;
     }
 
     int
