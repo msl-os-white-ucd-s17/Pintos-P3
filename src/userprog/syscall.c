@@ -253,8 +253,15 @@ syscall_handler(struct intr_frame *f) {
     }
 
     int
-    filesize(int fd) {
-        return;
+    filesize(int fid) {
+        file_lock_acquire();
+        struct file *fs = process_get_file(fid);
+        int f_size = -1;
+        if (fs != NULL) {
+            f_size = file_length(fs);
+        }
+        file_lock_release();
+        return f_size;
     }
 
     int
