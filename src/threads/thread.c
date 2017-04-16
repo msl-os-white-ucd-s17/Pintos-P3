@@ -9,7 +9,6 @@
 #include "threads/intr-stubs.h"
 #include "threads/palloc.h"
 #include "threads/switch.h"
-#include "threads/synch.h"
 #include "threads/vaddr.h"
 #include "threads/malloc.h"
 #ifdef USERPROG
@@ -38,11 +37,6 @@ static struct thread *initial_thread;
 /* Lock used by allocate_tid(). */
 static struct lock tid_lock;
 
-void file_lock_release();
-void file_lock_acquire();
-
-/* Global file lock */
-struct lock file_lock;
 
 /* Acquire and Release functions for file_lock */
 void file_lock_acquire()

@@ -207,7 +207,7 @@ syscall_handler (struct intr_frame *f) {
 
   bool
   create(const char *file, unsigned initial_size) {
-
+    lock_acquire()
     return;
   }
 
@@ -220,37 +220,37 @@ syscall_handler (struct intr_frame *f) {
   open(const char *file) {
     return;
   }
-//
-//  int
-//  filesize(int fd) {
-//    return;
-//  }
-//
-//  int
-//  read(int fd, void *buffer, unsigned size) {
-//    return;
-//  }
-//
-//  int
-//  write(int fd, const void *buffer, unsigned size) {
-//    return;
-//  }
-//
-//  void
-//  seek(int fd, unsigned position) {
-//    return;
-//  }
-//
-//  unsigned
-//  tell(int fd) {
-//    return;
-//  }
-//
-//  void
-//  close(int fd) {
-//    return;
-//  }
-//
+
+  int
+  filesize(int fd) {
+    return;
+  }
+
+  int
+  read(int fd, void *buffer, unsigned size) {
+    return;
+  }
+
+  int
+  write(int fd, const void *buffer, unsigned size) {
+    return;
+  }
+
+  void
+  seek(int fd, unsigned position) {
+    return;
+  }
+
+  unsigned
+  tell(int fd) {
+    return;
+  }
+
+  void
+  close(int fd) {
+    return;
+  }
+
 //  mapid_t
 //  mmap(int fd, void *addr) {
 //    return;

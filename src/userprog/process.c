@@ -340,6 +340,8 @@ load (user_program *p_user_prog, void (**eip) (void), void **esp)
     goto done;
   process_activate ();
 
+  //TODO :
+
   file = filesys_open ((*p_user_prog).file_name);
 
 

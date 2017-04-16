@@ -126,6 +126,14 @@ struct thread
 
 	};
 
+
+/* Global file lock */
+struct lock file_lock;
+
+void file_lock_release();
+void file_lock_acquire();
+
+
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
    Controlled by kernel command-line option "-o mlfqs". */
