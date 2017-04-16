@@ -1,5 +1,5 @@
 #include "userprog/syscall.h"
-
+#include "devices/shutdown.h"
 #include <stdio.h>
 #include <syscall-nr.h>
 #include "threads/interrupt.h"
@@ -183,45 +183,43 @@ syscall_handler (struct intr_frame *f) {
 
   }
 
-//  void
-//  halt(void) {
-//
-//    return;
-//  }
-//
-//  void
-//  exit(int status) {
-//
-//    return;
-//  }
-//
-//  pid_t
-//  exec(const char *file) {
-//
-//    return;
-//  }
-//
-//  int
-//  wait(pid_t pid) {
-//
-//    return;
-//  }
-//
-//  bool
-//  create(const char *file, unsigned initial_size) {
-//
-//    return;
-//  }
-//
-//  bool
-//  remove(const char *file) {
-//    return;
-//  }
-//
-//  int
-//  open(const char *file) {
-//    return;
-//  }
+  void halt(void) {
+    shutdown_power_off();
+  }
+
+  void
+  exit(int status) {
+
+    return;
+  }
+
+  pid_t
+  exec(const char *file) {
+
+    return;
+  }
+
+  int
+  wait(pid_t pid) {
+
+    return;
+  }
+
+  bool
+  create(const char *file, unsigned initial_size) {
+
+    return;
+  }
+
+  bool
+  remove(const char *file) {
+    return;
+  }
+
+  int
+  open(const char *file) {
+    return;
+  }
 //
 //  int
 //  filesize(int fd) {

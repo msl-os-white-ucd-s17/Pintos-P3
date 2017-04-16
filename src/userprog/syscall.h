@@ -5,15 +5,15 @@
 
 void syscall_init (void);
 
-struct user_syscall{
+struct user_syscall {
   uint32_t syscall_index;
   void  * function;
   uint32_t args[3];
   int   arg_count;
 };
 
-//semaphor for determining whether
-enum using_file_system{
+//semaphore for determining whether
+enum using_file_system {
   FILE_SYS_IN_USE = true,
   FILE_SYS_FREE = false
 };
