@@ -13,7 +13,7 @@
 #include "process.h"
 #include "syscall.h"
 
-static void syscall_handler(struct intr_frame *f)
+static void syscall_handler(struct intr_frame *f);
 static int user_memory_ok(uint8_t *, int size);
 static int file_sys_ok();
 static uint32_t get_user_int32(void *);
