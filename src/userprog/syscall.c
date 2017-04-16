@@ -8,11 +8,14 @@
 #include "syscall.h"
 
 static void syscall_handler (struct intr_frame *);
-static void exit_gracefully();
+
+static int user_memory_ok(uint8_t*, int size);
 static int file_sys_ok();
-static int user_memory_ok();
-static int get_syscall_args(uint8_t*, struct user_syscall);
-static int call_syscall(int, uint32_t[]);
+
+static uint32_t get_user_int32(void *);
+static int get_syscall_args(void*, struct user_syscall*);
+
+
 
 void
 syscall_init (void) 
@@ -20,20 +23,28 @@ syscall_init (void)
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
 }
 
-static int user_memory_ok(uint8_t * stack_pointer){
-  if(is_user_vaddr(stack_pointer) || (&stack_pointer) == NULL)
-    return false;
-  else
-    return true;
+static int user_memory_ok(uint8_t * stack_pointer, int size){
+ for(int i=0; i < size; i++) {
+   if (!is_user_vaddr(stack_pointer) || (&stack_pointer) == NULL)
+     return false;
+   else
+     return true;
+ }
 }
 
-static int get_syscall_args(uint8_t * stack_pointer, struct user_syscall new_syscall){
-  for (int i=0; (!user_memory_ok(stack_pointer) || i == 3);i++){
+static int get_syscall_args(void * stack_pointer, struct user_syscall * new_syscall){
+  if (!user_memory_ok(stack_pointer, 4)){return false;}
 
+  new_syscall->arg_count = 0;
+
+  for (int i=0; (user_memory_ok(stack_pointer, 4) && i < 3);i++){
+    new_syscall->args[i] = get_user_int32(stack_pointer);
+    new_syscall->arg_count++;
+    stack_pointer += 4;
   }
 };
 
-static uint32_t get_user_int32(uint8_t * stack_pointer){
+static uint32_t get_user_int32(void * stack_pointer){
   uint32_t * int32_address;
   uint8_t byte_array[4];
 
@@ -41,6 +52,7 @@ static uint32_t get_user_int32(uint8_t * stack_pointer){
     byte_array[i] = get_user(stack_pointer);
     stack_pointer++;
   }
+
   int32_address = *(uint32_t *)byte_array;
 }
 
@@ -48,19 +60,19 @@ static void
 syscall_handler (struct intr_frame *f) {
   printf("system call!\n");
 
-  if (!user_memory_ok(f)){
+  if (!user_memory_ok(f->esp, 1)){
     printf("Don't gimme that crap");
     thread_exit();
   }
 
-  uint8_t stack_pointer = f->esp;
+  void * stack_pointer = f->esp;
   struct user_syscall new_syscall;
 
   new_syscall.syscall_index = get_user_int32(stack_pointer);
-  stack_pointer++;
+  stack_pointer+=4;
 
-  uint8_t * sys_call_byte = get_user(f->esp);
-  int sys_call_num = (int)sys_call_byte;
+  get_syscall_args(stack_pointer, &new_syscall);
+  int sys_call_num = (int)new_syscall.syscall_index;
 
   switch(sys_call_num){
     case SYS_HALT :
@@ -129,6 +141,7 @@ syscall_handler (struct intr_frame *f) {
 //      break;
 
     default:
+      printf("AWW FACK");
       break;
 
   }
