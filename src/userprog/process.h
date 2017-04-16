@@ -10,9 +10,9 @@ int process_wait (tid_t);
 void process_exit (void);
 void process_activate (void);
 
-struct user_program {
+typedef struct {
   const char *file_name;
-  char **args;
+  char *args[16];
   int arg_count;
 
   //dont think a list is necessary, only grandchildren required (check for grandness with parent.parent = NULL)
@@ -24,6 +24,6 @@ struct user_program {
     BUSY,
     FIN
   };
-};
+} user_program;
 
 #endif /* userprog/process.h */
