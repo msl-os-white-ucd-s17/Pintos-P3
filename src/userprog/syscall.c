@@ -14,11 +14,16 @@
 #include "syscall.h"
 
 static void syscall_handler(struct intr_frame *f);
+
 static int user_memory_ok(uint8_t *, int size);
+
 static int file_sys_ok();
+
 static uint32_t get_user_int32(void *);
+
 static int get_syscall_args(void *, struct user_syscall *);
-struct process_file* search_files (struct list* files, int fid);
+
+struct process_file *search_files(struct list *files, int fid);
 
 
 void
@@ -26,26 +31,25 @@ syscall_init(void) {
     intr_register_int(0x30, 3, INTR_ON, syscall_handler, "syscall");
 }
 
-struct process_file*
-search_files (struct list* files, int fid)
-{
-	struct list_elem *e;
+struct process_file *
+search_files(struct list *files, int fid) {
+    struct list_elem *e;
 
-	for (e = list_begin (files); e != list_end (files); e = list_next(e));
-	{
-		struct process_file *f = list_entry (e, struct process_file, elem);
+    for (e = list_begin(files); e != list_end(files); e = list_next(e));
+    {
+        struct process_file *f = list_entry(e,
+        struct process_file, elem);
 
-		if(f->fid == fid)
-		{
-			return f;
-		}
+        if (f->fid == fid) {
+            return f;
+        }
 
-		return NULL;
-	}
+        return NULL;
+    }
 
 }
 
-static int 
+static int
 user_memory_ok(uint8_t *stack_pointer, int size) {
     for (int i = 0; i < size; i++) {
         if (!is_user_vaddr(stack_pointer) || (&stack_pointer) == NULL)
@@ -55,7 +59,7 @@ user_memory_ok(uint8_t *stack_pointer, int size) {
     }
 }
 
-static int 
+static int
 get_syscall_args(void *stack_pointer, struct user_syscall *new_syscall) {
     if (!user_memory_ok(stack_pointer, 4)) { return false; }
 
@@ -158,10 +162,10 @@ syscall_handler(struct intr_frame *f) {
             break;                   /* Report current position in a file. */
         case SYS_CLOSE :
             printf("calling SYS_CLOSE");
-						
-						file_lock_acquire();
-						close(&thread_current()->files,*(stack_pointer+1));
-						file_lock_release();
+
+            file_lock_acquire();
+            close(&thread_current()->files, *(stack_pointer + 1));
+            file_lock_release();
             break;                  /* Close a file. */
 
             /* Project 3 and optionally project 4. */
@@ -244,8 +248,7 @@ syscall_handler(struct intr_frame *f) {
         if (oFile == NULL) {
             file_lock_release();
             return -1;
-        }
-        else {
+        } else {
             int fd = process_affix_file(oFile);
             file_lock_release();
             return fd;
@@ -285,24 +288,22 @@ syscall_handler(struct intr_frame *f) {
     }
 
     void
-    close(struct list* files, int fid) {
-				struct list_elem *e;
-				struct process_file *f;
-		
-				for(e = list_begin (files); e != list_end(files); e = list_next (e))
-				{
-					f = list_entry (e, struct process_file, elem);
-					if(f->fid == fid)
-					{
-						file_close(f->file_ptr);
-						list_remove(e);
-					}
-				}
-
-				free(f);
+    close(struct list *files, int fid) {
+        struct list_elem *e;
+        struct process_file *ff;
+        file_lock_acquire()
+        for (e = list_begin(files); e != list_end(files); e = list_next(e)) {
+            ff = list_entry(e, struct process_file, elem);
+            if (ff->fid == fid) {
+                file_close(ff->file_ptr);
+                list_remove(e);
+            }
+        }
+        free(ff);
+        file_lock_release();
     }
 
-	
+
 
 //  mapid_t
 //  mmap(int fd, void *addr) {
