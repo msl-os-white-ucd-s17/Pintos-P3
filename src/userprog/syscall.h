@@ -5,10 +5,10 @@
 
 
 struct user_syscall {
-  uint32_t syscall_index;
-  void  * function;
-  uint32_t args[3];
-  int   arg_count;
+  int syscall_index;
+  void *function;
+  int args[3];
+  int arg_count;
 };
 
 

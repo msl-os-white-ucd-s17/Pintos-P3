@@ -7,22 +7,17 @@
 #include "threads/vaddr.h"
 #include "threads/malloc.h"
 #include "lib/string.h"
-#include "list.h"
+#include "lib/kernel/list.h"
 #include "filesys/filesys.h"
 #include "filesys/file.h"
-#include "process.h"
-#include "syscall.h"
+#include "userprog/process.h"
+
 
 static void syscall_handler(struct intr_frame *f);
-
-static int user_memory_ok(uint8_t *, int size);
-
+static bool user_memory_ok(const void *);
 static int file_sys_ok();
-
-static uint32_t get_user_int32(void *);
-
-static int get_syscall_args(void *, struct user_syscall *);
-
+static uint32_t get_user_int32(const void *);
+static int get_syscall_args(const void *, struct user_syscall *);
 struct process_file *search_files(struct list *files, int fid);
 
 
@@ -31,57 +26,55 @@ syscall_init(void) {
     intr_register_int(0x30, 3, INTR_ON, syscall_handler, "syscall");
 }
 
-struct process_file *
-search_files(struct list *files, int fid) {
+struct process_file *search_files(struct list *files, int fid) {
     struct list_elem *e;
-
     for (e = list_begin(files); e != list_end(files); e = list_next(e));
     {
-        struct process_file *f = list_entry(e,
-        struct process_file, elem);
+        struct process_file *f = list_entry(e, struct process_file, elem);
 
         if (f->fid == fid) {
             return f;
         }
-
-        return NULL;
     }
-
+    return NULL;
 }
 
-static int
-user_memory_ok(uint8_t *stack_pointer, int size) {
-    for (int i = 0; i < size; i++) {
-        if (!is_user_vaddr(stack_pointer) || (&stack_pointer) == NULL)
-            return false;
-        else
-            return true;
-    }
+static bool
+user_memory_ok(const void *stack_pointer) {
+	if (!is_user_vaddr(stack_pointer) || stack_pointer == NULL) {
+	    return false;
+	}
+	else {
+	    return true;
+	}
 }
 
-static int
-get_syscall_args(void *stack_pointer, struct user_syscall *new_syscall) {
-    if (!user_memory_ok(stack_pointer, 4)) { return false; }
+static bool
+get_syscall_args(const void *stack_pointer, struct user_syscall *new_syscall) {
+    if (!user_memory_ok(stack_pointer)) { 
+	return false; 
+    }
 
     new_syscall->arg_count = 0;
 
-    for (int i = 0; (user_memory_ok(stack_pointer, 4) && i < 3); i++) {
+    for (int i = 0; user_memory_ok(stack_pointer) && i < 3; i++) {
         new_syscall->args[i] = get_user_int32(stack_pointer);
         new_syscall->arg_count++;
         stack_pointer += 4;
     }
 };
 
-static uint32_t get_user_int32(void *stack_pointer) {
-    uint32_t *int32_address;
+static uint32_t get_user_int32(const void *stack_pointer) {
+    int *int32_address;
     uint8_t byte_array[4];
-
+   
     for (int i = 0; i < 4; i++) {
         byte_array[i] = get_user(stack_pointer);
-        stack_pointer++;
+        stack_pointer;
     }
 
-    int32_address = *(uint32_t *) byte_array;
+    int32_address = *(int *) byte_array;
+    return int32_address;
 }
 
 void
@@ -109,12 +102,12 @@ static void
 syscall_handler(struct intr_frame *f) {
     printf("System call!\n");
 
-    if (!user_memory_ok(f->esp, 1)) {
+    if (!user_memory_ok(f->esp)) {
         printf("Don't gimme that crap Lena!");
         thread_exit();
     }
 
-    void *stack_pointer = f->esp;
+    int *stack_pointer = (int *) f->esp;
     struct user_syscall new_syscall;
 
     new_syscall.syscall_index = get_user_int32(stack_pointer);
@@ -162,10 +155,7 @@ syscall_handler(struct intr_frame *f) {
             break;                   /* Report current position in a file. */
         case SYS_CLOSE :
             printf("calling SYS_CLOSE");
-
-            file_lock_acquire();
-            close(&thread_current()->files, *(stack_pointer + 1));
-            file_lock_release();
+            close();
             break;                  /* Close a file. */
 
             /* Project 3 and optionally project 4. */
@@ -293,13 +283,14 @@ syscall_handler(struct intr_frame *f) {
         struct process_file *ff;
         file_lock_acquire();
 
-        struct thread* curr_thread = thread_current();
+        struct thread *curr_thread = thread_current();
 
         for (e = list_begin(&curr_thread->files); e != list_end(&curr_thread->files); e = list_next(e)) {
             ff = list_entry(e, struct process_file, elem);
             if (ff->fid == fid) {
                 file_close(ff->file_ptr);
-                list_remove(e);
+                list_remove(&ff->elem);
+		break;
             }
         }
         free(ff);
