@@ -5,9 +5,9 @@
 
 
 struct user_syscall {
-  int syscall_index;
-  void *function;
-  int args[3];
+  // because each argument is passed through interrupt handler in 32 bit format
+  uint32_t syscall_index;
+  uint32_t args[3];
   int arg_count;
 };
 
