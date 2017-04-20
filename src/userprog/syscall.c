@@ -67,7 +67,7 @@ get_syscall_args(const void *stack_pointer, struct user_syscall *new_syscall) {
       new_syscall->arg_count++;
       stack_pointer += 4;
     }
-};
+}
 
 static uint32_t get_user_int32(const void *stack_pointer){
 
@@ -226,23 +226,21 @@ syscall_handler(struct intr_frame *f) {
         shutdown_power_off();
     }
 
-//    void
-//    exit(int status) {
-//
-//        return;
-//    }
-//
-//    pid_t
-//    exec(const char *file) {
-//
-//        return;
-//    }
-//
-//    int
-//    wait(pid_t pid) {
-//
-//        return;
-//    }
+    void
+    exit(int status) {
+        exit_process_by_code(status);
+    }
+
+    pid_t
+    exec(const char *file) {
+        return process_execute(file);
+    }
+
+    int
+    wait(pid_t pid) {
+
+        return;
+    }
 
     // MODIFIED BY SHAWN JOHNSON
     bool
@@ -322,7 +320,7 @@ syscall_handler(struct intr_frame *f) {
             if (ff->fid == fid) {
                 file_close(ff->file_ptr);
                 list_remove(&ff->elem);
-		break;
+		        break;
             }
         }
         free(ff);
