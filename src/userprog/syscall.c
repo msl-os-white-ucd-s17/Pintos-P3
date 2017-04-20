@@ -62,18 +62,16 @@ get_syscall_args(const void *stack_pointer, struct user_syscall *new_syscall) {
         new_syscall->arg_count++;
         stack_pointer += 4;
     }
-};
+}
 
 static uint32_t get_user_int32(const void *stack_pointer) {
     int *int32_address;
+    uint8_t *ba_ptr = malloc(sizeof(uint8_t) * 4))
     uint8_t byte_array[4];
    
     for (int i = 0; i < 4; i++) {
-        byte_array[i] = get_user(stack_pointer);
-        stack_pointer;
+        byte_array[i] = get_user((int) stack_pointer + i);
     }
-
-    int32_address = *(int *) byte_array;
     return int32_address;
 }
 
@@ -196,14 +194,12 @@ syscall_handler(struct intr_frame *f) {
 
     void
     exit(int status) {
-
-        return;
+        exit_process_by_code(status);
     }
 
     pid_t
     exec(const char *file) {
-
-        return;
+        return process_execute(file);
     }
 
     int
@@ -290,7 +286,7 @@ syscall_handler(struct intr_frame *f) {
             if (ff->fid == fid) {
                 file_close(ff->file_ptr);
                 list_remove(&ff->elem);
-		break;
+		        break;
             }
         }
         free(ff);
