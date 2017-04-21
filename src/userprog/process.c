@@ -601,7 +601,7 @@ setup_stack(user_program *user_prog, void **esp) {
         printf("Push pointer to argv[0] pointer\n");
         save_ptr = *esp;
         *esp -= sizeof(char **);
-        memcpy(*esp, save_ptr, sizeof(char **));
+        memcpy(*esp, &save_ptr, sizeof(char **));
         printf("Argv: Pointer to argv[0] pointer: 0x%x : 0x%x \n", (unsigned int) *esp, (unsigned int) save_ptr);
 
         printf("Push argc\n");

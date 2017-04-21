@@ -59,7 +59,7 @@ get_syscall_args(const void *stack_pointer, struct user_syscall *new_syscall) {
 
     for (int i = 0; i < 3; i++) {
       if (!user_memory_ok(stack_pointer, 4)) {
-        printf("");
+        printf("Error retrieving System Call Arguments");
         thread_exit;
       }
 
@@ -217,7 +217,8 @@ syscall_handler(struct intr_frame *f) {
             printf("Unrecognized System Call");
             break;
 
-    }
+  }
+}
 
     // MODIFIED BY SHAWN JOHNSON
     void halt(void) {
@@ -226,14 +227,12 @@ syscall_handler(struct intr_frame *f) {
 
     void
     exit(int status) {
-
-        return;
+        exit_process_by_code(status);
     }
 
     pid_t
     exec(const char *file) {
-
-        return;
+        return process_execute(file);
     }
 
     int
@@ -287,25 +286,25 @@ syscall_handler(struct intr_frame *f) {
         return f_size;
     }
 
-    int
-    read(int fd, void *buffer, unsigned size) {
-        return;
-    }
-
-    int
-    write(int fd, const void *buffer, unsigned size) {
-        return;
-    }
-
-    void
-    seek(int fd, unsigned position) {
-        return;
-    }
-
-    unsigned
-    tell(int fd) {
-        return;
-    }
+//    int
+//    read(int fd, void *buffer, unsigned size) {
+//        return;
+//    }
+//
+//    int
+//    write(int fd, const void *buffer, unsigned size) {
+//        return;
+//    }
+//
+//    void
+//    seek(int fd, unsigned position) {
+//        return;
+//    }
+//
+//    unsigned
+//    tell(int fd) {
+//        return;
+//    }
 
     void
     close(int fid) {
@@ -320,7 +319,7 @@ syscall_handler(struct intr_frame *f) {
             if (ff->fid == fid) {
                 file_close(ff->file_ptr);
                 list_remove(&ff->elem);
-		break;
+		        break;
             }
         }
         free(ff);
