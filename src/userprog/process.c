@@ -211,9 +211,12 @@ process_exit(void) {
         exit_process_by_code(-1);
 
     int exit_code = cur->exit_code;
-
-
-    //TODO : Implement closing of all files
+		printf("%s: exit(%d)\n",cur->name,exit_code);
+		
+		file_lock_acquire();
+		file_close(thread_current()->cur_file);
+		close_all(&thread_current()->files);
+		file_lock_release();
 
     /* Destroy the current process's page directory and switch back
        to the kernel-only page directory. */
@@ -329,13 +332,12 @@ load(user_program *p_user_prog, void (**eip)(void), void **esp) {
     bool success = false;
     int i;
 
+		file_lock_acquire();
     /* Allocate and activate page directory. */
     t->pagedir = pagedir_create();
     if (t->pagedir == NULL)
         goto done;
     process_activate();
-
-    //TODO : Add filesys lock
 
     file = filesys_open((*p_user_prog).file_name);
 
@@ -417,9 +419,12 @@ load(user_program *p_user_prog, void (**eip)(void), void **esp) {
     *eip = (void (*)(void)) ehdr.e_entry;
     success = true;
 
+		file_deny_write(file);
+		thread_current()->cur_file = file;
+
     done:
     /* We arrive here whether the load is successful or not. */
-    file_close(file);
+		file_lock_release();
     return success;
 }
 
