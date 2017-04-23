@@ -15,10 +15,10 @@
 
 
 static void syscall_handler(struct intr_frame *f);
-static bool user_memory_ok(const void *, int);
+static bool user_memory_ok(const void *);
 static int file_sys_ok();
-static uint32_t get_user_int32(const void *);
-static bool get_syscall_args(const void *, struct user_syscall *);
+static int get_user_int32(int *);
+static int get_syscall_args(const void *, struct user_syscall *);
 struct process_file *search_files(struct list *files, int fid);
 
 
@@ -40,44 +40,44 @@ struct process_file *search_files(struct list *files, int fid) {
     return NULL;
 }
 
-static bool user_memory_ok(const void *stack_pointer, int byte_size) {
-	for (int i = 0; i < byte_size; i++) {
-    if (!is_user_vaddr(stack_pointer) || stack_pointer == NULL) {
-      return false;
-    }
-  }
-  return true;
+static bool
+user_memory_ok(const void *stack_pointer) {
+	if (!is_user_vaddr(stack_pointer) || stack_pointer == NULL) {
+	    return false;
+	}
+	else {
+	    return true;
+	}
 }
 
 static bool
 get_syscall_args(const void *stack_pointer, struct user_syscall *new_syscall) {
-    if (!user_memory_ok(stack_pointer, 1)) {
+    if (!user_memory_ok(stack_pointer)) {
       return false;
     }
 
     new_syscall->arg_count = 0;
 
-    for (int i = 0; i < 3; i++) {
-      if (!user_memory_ok(stack_pointer, 4)) {
-        thread_exit;
-      }
-
-      new_syscall->args[i] = get_user_int32(stack_pointer);
-      new_syscall->arg_count++;
-      stack_pointer += 4;
+    for (int i = 0; user_memory_ok(stack_pointer) && i < 3; i++) {
+        new_syscall->args[i] = get_user_int32(stack_pointer);
+        new_syscall->arg_count++;
+        stack_pointer += 4;
     }
 };
 
-static uint32_t get_user_int32(const void *stack_pointer){
+static int get_user_int32(const void *stack_pointer) {
+    int *sp = NULL;
+    *sp = *(int *) stack_pointer;
 
     uint8_t byte_array[4];
    
-    for(int i = 0; i < 4; i++) {
+    for (int i = 0; i < 4; i++) {
         byte_array[i] = get_user(stack_pointer);
-        stack_pointer++;
+        // Increment sp?
     }
 
-  return *(uint32_t *) byte_array;
+    int32_address = (int *) byte_array;
+    return int32_address;
 }
 
 void
@@ -105,20 +105,20 @@ static void
 syscall_handler(struct intr_frame *f) {
   printf("\nSystem call!\n");
 
-  if (!user_memory_ok(f->esp, 1)) {
-    printf("Invalid memory location");
-    thread_exit();
-  }
+    if (!user_memory_ok(f->esp)) {
+        printf("Don't gimme that crap Lena!");
+        exit_process_by_code(-1);
+    }
 
   void *stack_pointer = (void *) f->esp;
   struct user_syscall new_syscall;
 
+    new_syscall.syscall_index = get_user_int32(stack_pointer);
 
-  new_syscall.syscall_index = get_user_int32(stack_pointer);
-  stack_pointer += 4;
+    (int *) stack_pointer += 4;
 
-  get_syscall_args(stack_pointer, &new_syscall);
-  int sys_call_num = (int) new_syscall.syscall_index;
+    get_syscall_args(stack_pointer, &new_syscall);
+    int sys_call_num = new_syscall.syscall_index;
 
   switch (sys_call_num) {
     case SYS_HALT :
@@ -188,7 +188,7 @@ syscall_handler(struct intr_frame *f) {
       close((int) new_syscall.args[0]);
       break;                  /* Close a file. */
 
-      /* Project 3 and optionally project 4. */
+            /* Project 3 and optionally project 4. */
 //    case SYS_MMAP :
 //      printf("calling SYS_MMAP");
 //      break;                   /* Map a file into memory. */
@@ -213,9 +213,9 @@ syscall_handler(struct intr_frame *f) {
 //      printf("calling SYS_INUMBER");
 //      break;
 
-    default:
-      printf("System Call Not Recognized");
-      break;
+        default:
+            printf("Unrecognized System Call");
+            break;
 
   }
 }
@@ -231,7 +231,7 @@ syscall_handler(struct intr_frame *f) {
 //        return;
 //    }
 //
-    int
+    pid_t
     exec(const char *file) {
 			file_lock_acquire();
 			char *f_cpy = malloc (strlen(file)+1);
@@ -253,6 +253,15 @@ syscall_handler(struct intr_frame *f) {
 				file_lock_release();
 				return process_execute(file);
 			}       
+    void
+    exit(int status) {
+        exit_process_by_code(status);
+    }
+
+    int
+    wait(pid_t pid) {
+
+        return;
     }
 
     // MODIFIED BY SHAWN JOHNSON
@@ -303,6 +312,8 @@ syscall_handler(struct intr_frame *f) {
     /*
 		int
     read(int fd, const void *buffer, unsigned size) {
+    int
+    read(int fd, void *buffer, unsigned size) {
         return;
     }
 
@@ -323,6 +334,18 @@ syscall_handler(struct intr_frame *f) {
 //    tell(int fd) {
 //        return;
 //    }
+        return;
+    }
+
+    void
+    seek(int fd, unsigned position) {
+        return;
+    }
+
+    unsigned
+    tell(int fd) {
+        return;
+    }
 
     void
     close(int fid) {
@@ -337,7 +360,7 @@ syscall_handler(struct intr_frame *f) {
             if (ff->fid == fid) {
                 file_close(ff->file_ptr);
                 list_remove(&ff->elem);
-		break;
+		        break;
             }
         }
         free(ff);
@@ -398,7 +421,3 @@ close_all (struct list* files)
 //    return;
 //  }
 
-
-
-//TODO memory cleanups for parent / child / grancchild deaths
-//TODO use semaphors for parent child grandchild synchronization
