@@ -17,7 +17,7 @@ void syscall_init (void);
 void exit_process_by_code(int code);
 void halt (void);
 void exit (int status);
-pid_t exec (const char *file);
+int exec (const char *file);
 int wait (pid_t pid);
 bool create (const char *file, unsigned initial_size);
 bool remove (const char *file);

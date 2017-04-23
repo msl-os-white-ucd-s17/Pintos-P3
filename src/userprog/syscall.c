@@ -226,7 +226,7 @@ void halt(void) {
     shutdown_power_off();
 }
 
-pid_t
+int
 exec(const char *file) {
     file_lock_acquire();
     char *f_cpy = malloc(strlen(file) + 1);
@@ -342,14 +342,8 @@ close_all (struct list* files)
 
 int
 read(int fd, void *buffer, unsigned size) {
-    struct file *f;
+    struct file *f = NULL;
     file_lock_acquire();
-
-
-
-//	if(fd == 0)
-//	{
-//	}
 
     f = process_get_file(fd);
     if (f == NULL) // If file could not be read, return -1
