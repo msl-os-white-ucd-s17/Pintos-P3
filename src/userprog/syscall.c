@@ -73,6 +73,7 @@ get_user_int32(const void *stack_pointer) {
     uint8_t byte_array[4];
    
     for (int i = 0; i < 4; i++) {
+        //May need to use malloc here
         byte_array[i] = get_user(stack_pointer);
         // Increment sp?
     }
@@ -87,8 +88,7 @@ exit_process_by_code(int code) {
 
     for (e = list_begin(&thread_current()->parent->child_processes);
          e != list_end(&thread_current()->parent->child_processes); e = list_next(e)) {
-        struct child_parent *c = list_entry(e,
-        struct child_parent, elem);
+        struct child_parent *c = list_entry(e, struct child_parent, elem);
         if (c->tid == thread_current()->tid) {
             c->has_exited = true;
             c->exit_code = code;
@@ -255,7 +255,7 @@ exit(int status) {
 int
 wait(pid_t pid) {
 
-    return;
+    return process_wait(pid);
 }
 
 // MODIFIED BY SHAWN JOHNSON
