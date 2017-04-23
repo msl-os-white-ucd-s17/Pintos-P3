@@ -14,12 +14,12 @@
 #include "lib/stdbool.h"
 
 
-static void syscall_handler(struct intr_frame *f);
+static void syscall_handler(struct intr_frame *);
 static bool user_memory_ok(const void *);
-static int file_sys_ok();
-static int get_user_int32(int *);
-static int get_syscall_args(const void *, struct user_syscall *);
-struct process_file *search_files(struct list *files, int fid);
+//static int file_sys_ok();
+static int get_user_int32(const void *);
+static bool get_syscall_args(const void *, struct user_syscall *);
+struct process_file *search_files(struct list *, int);
 
 
 void
@@ -70,16 +70,10 @@ get_user_int32(const void *stack_pointer) {
     int *sp = NULL;
     *sp = *(int *) stack_pointer;
 
-    uint8_t byte_array[4];
-   
-    for (int i = 0; i < 4; i++) {
-        //May need to use malloc here
-        byte_array[i] = get_user(stack_pointer);
-        // Increment sp?
-    }
+    int int32;
+    memcpy(int32, sp, 4);
 
-    int32_address = (int *) byte_array;
-    return int32_address;
+    return int32;
 }
 
 void
@@ -244,7 +238,7 @@ exec(const char *file) {
     else {
         file_close(f);
         file_lock_release();
-        return process_execute(file);
+        return (int) process_execute(file);
     }
 }
 void
@@ -254,7 +248,6 @@ exit(int status) {
 
 int
 wait(pid_t pid) {
-
     return process_wait(pid);
 }
 
@@ -390,7 +383,7 @@ seek(int fd, unsigned position) {
     //f = search_files(f, fd);
     if (f == NULL)
     {
-        printf("Seek failed. Exiting");
+        printf("Seek failed. Exiting\n");
         exit(-1);	// Should exit
     }
     //f->pos = position;
@@ -405,7 +398,7 @@ tell(int fd) {
     f= process_get_file(fd);
     if (f == NULL)
     {
-        printf("Tell failed. Exiting");
+        printf("Tell failed. Exiting\n");
         exit(-1);	// Should exit
     }
     return file_tell(f);	// Return file position from file.c
