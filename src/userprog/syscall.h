@@ -14,7 +14,6 @@ struct user_syscall {
 
 
 void syscall_init (void);
-void exit_process_by_code(int code);
 void halt (void);
 void exit (int status);
 pid_t exec (const char *file);
