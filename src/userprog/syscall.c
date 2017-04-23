@@ -52,7 +52,7 @@ user_memory_ok(const void *stack_pointer) {
 
 static bool
 get_syscall_args(const void *stack_pointer, struct user_syscall *new_syscall) {
-    if (!user_memory_ok(stack_pointer, 1)) {
+    if (!user_memory_ok(stack_pointer)) {
       return false;
     }
 
@@ -73,7 +73,7 @@ static int get_user_int32(const void *stack_pointer) {
    
     for (int i = 0; i < 4; i++) {
         byte_array[i] = get_user(stack_pointer);
-
+        // Increment sp?
     }
 
     int32_address = (int *) byte_array;
@@ -103,7 +103,7 @@ exit_process_by_code(int code) {
 
 static void
 syscall_handler(struct intr_frame *f) {
-    printf("System call!\n");
+  printf("\nSystem call!\n");
 
     if (!user_memory_ok(f->esp)) {
         printf("Don't gimme that crap Lena!");
@@ -128,58 +128,58 @@ syscall_handler(struct intr_frame *f) {
 
     case SYS_EXIT :
       printf("calling SYS_EXIT");
-//      exit((int) new_syscall.args[0]);
+      exit_process_by_code((int) new_syscall.args[0]);
       break;                   /* Terminate this process. */
 
     case SYS_EXEC :
       printf("calling SYS_EXEC");
-//      exec((const char *) new_syscall.args[0]);
+      f->eax = exec((const char *) new_syscall.args[0]);
       break;                   /* Start another process. */
 
     case SYS_WAIT :
       printf("calling SYS_WAIT");
-//      wait((pid_t) new_syscall.args[0]))
+      f-> eax = process_wait((tid_t) new_syscall.args[0]);
       break;                   /* Wait for a child process to die. */
 
     case SYS_CREATE :
       printf("calling SYS_CREATE");
-      create((const char *) new_syscall.args[0], (unsigned) new_syscall.args[1]);
+      f->eax = create((const char *) new_syscall.args[0], (unsigned) new_syscall.args[1]);
       break;                 /* Create a file. */
 
     case SYS_REMOVE :
       printf("calling SYS_REMOVE");
-      create((const char *) new_syscall.args[0], (unsigned) new_syscall.args[1]);
+      f->eax = remove((const char *) new_syscall.args[0]);
       break;                 /* Delete a file. */
 
     case SYS_OPEN :
-      open((const char *) new_syscall.args[0]);
+      f->eax = open((const char *) new_syscall.args[0]);
       printf("calling SYS_OPEN");
       break;                   /* Open a file. */
 
     case SYS_FILESIZE :
-      filesize((int) new_syscall.args[0]);
+      f->eax = filesize((int) new_syscall.args[0]);
       printf("calling SYS_FILESIZE");
       break;               /* Obtain a file's size. */
 
     case SYS_READ :
       printf("calling SYS_READ");
-//      read((int) new_syscall.args[0], (const void *) new_syscall.args[1], (unsigned) new_syscall.args[2]);
+     // f->eax = read((int) new_syscall.args[0], (const void *) new_syscall.args[1], (unsigned) new_syscall.args[2]);
       break;                   /* Read from a file. */
 
     case SYS_WRITE :
-      printf("calling SYS_WRITE");
-//      write((int) new_syscall.args[0], (const void *) new_syscall.args[1], (unsigned) new_syscall.args[2]);
+      printf("calling SYS_WRITE\n");
+     //write((int) new_syscall.args[0], (const void *) new_syscall.args[1], (unsigned) new_syscall.args[2]);
 
       break;                  /* Write to a file. */
 
     case SYS_SEEK :
-      printf("calling SYS_SEEK");
-//      seek((int) new_syscall.args[0], (unsigned) new_syscall.args[1]);
+      printf("calling SYS_SEEK\n");
+      //seek((int) new_syscall.args[0], (unsigned) new_syscall.args[1]);
       break;                   /* Change position in a file. */
 
     case SYS_TELL :
-      printf("calling SYS_TELL");
-//      tell((int) new_syscall.args[0]);
+      printf("calling SYS_TELL\n");
+      //tell((int) new_syscall.args[0]);
 
       break;                   /* Report current position in a file. */
 
@@ -225,14 +225,37 @@ syscall_handler(struct intr_frame *f) {
         shutdown_power_off();
     }
 
+//    void
+//    exit(int status) {
+//
+//        return;
+//    }
+//
+    pid_t
+    exec(const char *file) {
+			file_lock_acquire();
+			char *f_cpy = malloc (strlen(file)+1);
+			strlcpy (f_cpy, file, (strlen(file)+1));
+
+			char * save_ptr;
+			f_cpy = strtok_r (f_cpy, " ", &save_ptr);
+
+			struct file* f = filesys_open (f_cpy);
+
+			if(f == NULL)
+			{
+				file_lock_release();
+				return -1;
+			}
+			else
+			{
+				file_close(f);
+				file_lock_release();
+				return process_execute(file);
+			}       
     void
     exit(int status) {
         exit_process_by_code(status);
-    }
-
-    pid_t
-    exec(const char *file) {
-        return process_execute(file);
     }
 
     int
@@ -286,6 +309,9 @@ syscall_handler(struct intr_frame *f) {
         return f_size;
     }
 
+    /*
+		int
+    read(int fd, const void *buffer, unsigned size) {
     int
     read(int fd, void *buffer, unsigned size) {
         return;
@@ -293,6 +319,21 @@ syscall_handler(struct intr_frame *f) {
 
     int
     write(int fd, const void *buffer, unsigned size) {
+
+				printf("In write fd: %d \n", fd);
+        return fd;
+     }
+		*/
+//
+//    void
+//    seek(int fd, unsigned position) {
+//        return;
+//    }
+//
+//    unsigned
+//    tell(int fd) {
+//        return;
+//    }
         return;
     }
 
@@ -325,6 +366,23 @@ syscall_handler(struct intr_frame *f) {
         free(ff);
         file_lock_release();
     }
+
+void
+close_all (struct list* files)
+{
+	struct list_elem *e;
+		
+	while (!list_empty (files))
+	{
+		e = list_pop_front (files);
+		
+		struct process_file *f = list_entry (e, struct process_file, elem);
+
+		file_close(f->file_ptr);
+		list_remove(e);
+		free(f);
+	}
+}
 
 
 
