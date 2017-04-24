@@ -12,6 +12,8 @@
 #include "filesys/file.h"
 #include "userprog/process.h"
 #include "lib/stdbool.h"
+#include "../threads/thread.h"
+
 
 static void syscall_handler(struct intr_frame *);
 static void user_memory_ok(const void *, int);
@@ -121,11 +123,11 @@ syscall_handler(struct intr_frame *f) {
       break;               /* Obtain a file's size. */
 
     case SYS_READ :
-      read((int) new_syscall.args[0], (void *) new_syscall.args[1], (unsigned) new_syscall.args[2]);
+      f->eax = read((int) new_syscall.args[0], (const void *) new_syscall.args[1], (unsigned) new_syscall.args[2]);
       break;                   /* Read from a file. */
 
     case SYS_WRITE :
-      write((int) new_syscall.args[0], (const void *) new_syscall.args[1], (unsigned) new_syscall.args[2]);
+      f->eax = write((int) new_syscall.args[0], (const void *) new_syscall.args[1], (unsigned) new_syscall.args[2]);
 
       break;                  /* Write to a file. */
 
@@ -134,7 +136,7 @@ syscall_handler(struct intr_frame *f) {
       break;                   /* Change position in a file. */
 
     case SYS_TELL :
-      tell((int) new_syscall.args[0]);
+      f->eax = tell((int) new_syscall.args[0]);
 
       break;                   /* Report current position in a file. */
 
@@ -174,6 +176,7 @@ exit(int status) {
 
   pid_t
   exec(const char *file) {
+    user_memory_ok(file,sizeof(file));
     file_lock_acquire();
     char *f_cpy = malloc (strlen(file)+1);
     strlcpy (f_cpy, file, (strlen(file)+1));
@@ -263,10 +266,10 @@ close(int fid) {
         if (ff->fid == fid) {
             file_close(ff->file_ptr);
             list_remove(&ff->elem);
+            curr_thread->fid_count--;
             break;
         }
     }
-    free(ff);
     file_lock_release();
 }
 
@@ -290,13 +293,15 @@ close_all (struct list* files)
 
 int
 read(int fd, void *buffer, unsigned size) {
-    if (fd == 0) {
+  user_memory_ok(buffer, 1);
+  if (fd == 0) {
         char* buf = (char *) buffer;
         for (unsigned i = 0; i < size; ++i) {
             buf[i] = input_getc();
         }
         return size;
     }
+
     struct file *f = NULL;
     file_lock_acquire();
 
@@ -315,6 +320,7 @@ read(int fd, void *buffer, unsigned size) {
 /* NEW CHANGE */
 int
 write(int fd, const void *buffer, unsigned size) {
+    user_memory_ok(buffer, 1);
     struct file *f;
     file_lock_acquire();
 
