@@ -6,8 +6,8 @@
 
 struct user_syscall {
   // because each argument is passed through interrupt handler in 32 bit format
-  uint32_t syscall_index;
-  uint32_t args[3];
+  int syscall_index;
+  int args[3];
   int arg_count;
 };
 
@@ -16,14 +16,14 @@ struct user_syscall {
 void syscall_init (void);
 void halt (void);
 void exit (int status);
-pid_t exec (const char *file);
+int exec (const char *file);
 int wait (pid_t pid);
 bool create (const char *file, unsigned initial_size);
 bool remove (const char *file);
 int open (const char *file);
 int filesize (int fd);
 int read (int fd, void *buffer, unsigned size);
-//int write (int fd, void *buffer, unsigned size);
+int write (int fd, const void *buffer, unsigned size);
 void seek (int fd, unsigned position);
 unsigned tell (int fd);
 void close (int fd);

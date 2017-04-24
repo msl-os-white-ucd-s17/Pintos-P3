@@ -14,12 +14,12 @@
 #include "lib/stdbool.h"
 
 
-static void syscall_handler(struct intr_frame *f);
+static void syscall_handler(struct intr_frame *);
 static bool user_memory_ok(const void *, int);
 static int file_sys_ok();
 static uint32_t get_user_int32(const void *);
 static bool get_syscall_args(const void *, struct user_syscall *);
-struct process_file *search_files(struct list *files, int fid);
+struct process_file *search_files(struct list *, int);
 
 
 void
@@ -79,9 +79,9 @@ static uint32_t get_user_int32(const void *stack_pointer){
       byte_array[i] = get_user(temp_stack_pointer);
       temp_stack_pointer++;
   }
-
-  return *(uint32_t *) byte_array;
+    return *(uint32_t *) byte_array;
 }
+
 
 static void
 syscall_handler(struct intr_frame *f) {
@@ -155,189 +155,126 @@ syscall_handler(struct intr_frame *f) {
   }
 }
 
-    // MODIFIED BY SHAWN JOHNSON
-    void halt(void) {
-        shutdown_power_off();
+// MODIFIED BY SHAWN JOHNSON
+void halt(void) {
+    shutdown_power_off();
+}
+
+void
+exit(int status) {
+  struct list_elem *e;
+
+  for (e = list_begin(&thread_current()->parent->child_processes);
+       e != list_end(&thread_current()->parent->child_processes);
+       e = list_next(e)) {
+    struct child_parent *c = list_entry(e, struct child_parent, elem);
+    if (c->tid == thread_current()->tid) {
+      c->has_exited = true;
+      c->exit_code = status;
     }
+  }
 
-    void
-    exit(int status) {
-      struct list_elem *e;
+  thread_current()->exit_code = status;
+  if (thread_current()->parent->waiting_on_thread == thread_current()->tid)
+    sema_up(&thread_current()->parent->child_sema);
+  thread_exit();
+}
 
-      for (e = list_begin(&thread_current()->parent->child_processes);
-           e != list_end(&thread_current()->parent->child_processes);
-           e = list_next(e)) {
-        struct child_parent *c = list_entry(e, struct child_parent, elem);
-        if (c->tid == thread_current()->tid) {
-          c->has_exited = true;
-          c->exit_code = status;
-        }
-      }
+  pid_t
+  exec(const char *file) {
+    file_lock_acquire();
+    char *f_cpy = malloc (strlen(file)+1);
+    strlcpy (f_cpy, file, (strlen(file)+1));
 
-      thread_current()->exit_code = status;
-      if (thread_current()->parent->waiting_on_thread == thread_current()->tid)
-        sema_up(&thread_current()->parent->child_sema);
-      thread_exit();
+    char * save_ptr;
+    f_cpy = strtok_r (f_cpy, " ", &save_ptr);
+
+    struct file* f = filesys_open (f_cpy);
+
+    if(f == NULL)
+    {
+      file_lock_release();
+      return -1;
     }
-
-    pid_t
-    exec(const char *file) {
-			file_lock_acquire();
-			char *f_cpy = malloc (strlen(file)+1);
-			strlcpy (f_cpy, file, (strlen(file)+1));
-
-			char * save_ptr;
-			f_cpy = strtok_r (f_cpy, " ", &save_ptr);
-
-			struct file* f = filesys_open (f_cpy);
-
-			if(f == NULL)
-			{
-				file_lock_release();
-				return -1;
-			}
-			else
-			{
-				file_close(f);
-				file_lock_release();
-				return process_execute(file);
-			}
+    else
+    {
+      file_close(f);
+      file_lock_release();
+      return process_execute(file);
     }
+  }
 
-    // MODIFIED BY SHAWN JOHNSON
-    bool
-    create(const char *file, unsigned initial_size) {
-        file_lock_acquire();
-        bool error = filesys_create(file, initial_size);
+
+int
+wait(pid_t pid) {
+    return process_wait(pid);
+}
+
+// MODIFIED BY SHAWN JOHNSON
+bool
+create(const char *file, unsigned initial_size) {
+    file_lock_acquire();
+    bool error = filesys_create(file, initial_size);
+    file_lock_release();
+    return error;
+}
+
+// MODIFIED BY SHAWN JOHNSON
+bool
+remove(const char *file) {
+    file_lock_acquire();
+    bool error = filesys_remove(file);
+    file_lock_release();
+    return error;
+}
+
+// MODIFIED BY SHAWN JOHNSON
+int
+open(const char *file) {
+    file_lock_acquire();
+    struct file *oFile = filesys_open(file);
+    if (oFile == NULL) {
         file_lock_release();
-        return error;
-    }
-
-    // MODIFIED BY SHAWN JOHNSON
-    bool
-    remove(const char *file) {
-        file_lock_acquire();
-        bool error = filesys_remove(file);
+        return -1;
+    } else {
+        int fd = process_affix_file(oFile);
         file_lock_release();
-        return error;
+        return fd;
     }
+}
 
-    // MODIFIED BY SHAWN JOHNSON
-    int
-    open(const char *file) {
-        file_lock_acquire();
-        struct file *oFile = filesys_open(file);
-        if (oFile == NULL) {
-            file_lock_release();
-            return -1;
-        } else {
-            int fd = process_affix_file(oFile);
-            file_lock_release();
-            return fd;
+
+int
+filesize(int fid) {
+    file_lock_acquire();
+    struct file *fs = process_get_file(fid);
+    int f_size = -1;
+    if (fs != NULL) {
+        f_size = file_length(fs);
+    }
+    file_lock_release();
+    return f_size;
+}
+
+void
+close(int fid) {
+    struct list_elem *e;
+    struct process_file *ff;
+    file_lock_acquire();
+
+    struct thread *curr_thread = thread_current();
+
+    for (e = list_begin(&curr_thread->files); e != list_end(&curr_thread->files); e = list_next(e)) {
+        ff = list_entry(e, struct process_file, elem);
+        if (ff->fid == fid) {
+            file_close(ff->file_ptr);
+            list_remove(&ff->elem);
+            break;
         }
     }
-
-    int
-    filesize(int fid) {
-        file_lock_acquire();
-        struct file *fs = process_get_file(fid);
-        int f_size = -1;
-        if (fs != NULL) {
-            f_size = file_length(fs);
-        }
-        file_lock_release();
-        return f_size;
-    }
-
-/* NEW CHANGE */
-    int
-    read(int fd, void *buffer, unsigned size) {
-	struct file *f;
-	file_lock_acquire();
-
-	f = process_get_file(fd);
-	if (f == NULL) // If file could not be read, return -1
-	{
-		file_lock_release();
-		return -1;
-	}
-
-	size = file_read(f, buffer, size);
-	file_lock_release();
-        return size;
-    }
-
-/* NEW CHANGE */
-    int
-    write(int fd, const void *buffer, unsigned size) {
-	struct file *f;
-	file_lock_acquire();
-
-	if (fd == 1)
-	{
-		putbuf(buffer, size);		// Buffer writen using putbuf
-		file_lock_release();
-		return size;
-	}
-
-	f = process_get_file(fd);
-	if (f == NULL)			// If nothing written to file, return 0
-	{
-		file_lock_release();
-		return 0;
-	}
-
-	size = file_write(f, buffer, size);
-	file_lock_release();
-        return size;
-    }
-
-/* NEW CHANGE */
-    void
-    seek(int fd, unsigned position) {
-	struct file *f;
-	f = process_get_file(fd);
-	if (f == NULL)
-	{
-		printf("Seek failed. Exiting");
-		exit(-1);	// Should exit
-	}
-	file_seek(f, position);		// Set file position to new position from file.c
-        return;
-    }
-
-/* NEW CHANGE */
-    unsigned
-    tell(int fd) {
-	struct file *f;
-	f= process_get_file(fd);
-	if (f == NULL)
-	{
-		printf("Tell failed. Exiting");
-		exit(-1);	// Should exit
-	}
-        return file_tell(f);	// Return file position from file.c
-    }
-
-    void
-    close(int fid) {
-        struct list_elem *e;
-        struct process_file *ff;
-        file_lock_acquire();
-
-        struct thread *curr_thread = thread_current();
-
-        for (e = list_begin(&curr_thread->files); e != list_end(&curr_thread->files); e = list_next(e)) {
-            ff = list_entry(e, struct process_file, elem);
-            if (ff->fid == fid) {
-                file_close(ff->file_ptr);
-                list_remove(&ff->elem);
-		        break;
-            }
-        }
-        free(ff);
-        file_lock_release();
-    }
+    free(ff);
+    file_lock_release();
+}
 
 void
 close_all (struct list* files)
@@ -355,4 +292,111 @@ close_all (struct list* files)
 		free(f);
 	}
 }
+
+
+int
+read(int fd, void *buffer, unsigned size) {
+    struct file *f = NULL;
+    file_lock_acquire();
+
+    f = process_get_file(fd);
+    if (f == NULL) // If file could not be read, return -1
+    {
+        file_lock_release();
+        return -1;
+    }
+
+    size = file_read(f, buffer, size);
+    file_lock_release();
+    return size;
+}
+
+/* NEW CHANGE */
+int
+write(int fd, const void *buffer, unsigned size) {
+    struct file *f;
+    file_lock_acquire();
+
+    if (fd == 1)
+    {
+        putbuf(buffer, size);		// Buffer writen using putbuf
+        file_lock_release();
+        return size;
+    }
+
+    f = process_get_file(fd);
+    if (f == NULL)			// If nothing written to file, return 0
+    {
+        file_lock_release();
+        return 0;
+    }
+
+    size = file_write(f, buffer, size);
+    file_lock_release();
+    return size;
+}
+
+/* NEW CHANGE */
+void
+seek(int fd, unsigned position) {
+    struct file *f;
+    f = process_get_file(fd);
+    //f = search_files(f, fd);
+    if (f == NULL)
+    {
+        printf("Seek failed. Exiting\n");
+        exit(-1);	// Should exit
+    }
+    //f->pos = position;
+    file_seek(f, position);		// Set file position to new position from file.c
+    return;
+}
+
+/* NEW CHANGE */
+unsigned
+tell(int fd) {
+    struct file *f;
+    f= process_get_file(fd);
+    if (f == NULL)
+    {
+        printf("Tell failed. Exiting\n");
+        exit(-1);	// Should exit
+    }
+    return file_tell(f);	// Return file position from file.c
+}
+
+//  mapid_t
+//  mmap(int fd, void *addr) {
+//    return;
+//  }
+//
+//  void
+//  munmap(mapid_t mapid) {
+//    return;
+//  }
+//
+//  bool
+//  chdir(const char *dir) {
+//    return;
+//  }
+//
+//  bool
+//  mkdir(const char *dir) {
+//    return;
+//  }
+//
+//  bool
+//  readdir(int fd, char name[READDIR_MAX_LEN + 1]) {
+//    return;
+//  }
+//
+//  bool
+//  isdir(int fd) {
+//    return;
+//  }
+//
+//  int
+//  inumber(int fd) {
+//    return;
+//  }
 

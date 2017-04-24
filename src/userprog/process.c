@@ -171,10 +171,8 @@ process_wait(tid_t child_tid) {
     struct child_parent *_c = NULL;
     struct list_elem *_e = NULL;
 
-    for (e = list_begin(&thread_current()->child_processes);
-         e != list_end(&thread_current()->child_processes); e = list_next(e)) {
-        struct child_parent *c = list_entry(e,
-        struct child_parent, elem);
+    for (e = list_begin(&thread_current()->child_processes); e != list_end(&thread_current()->child_processes); e = list_next(e)) {
+        struct child_parent *c = list_entry(e, struct child_parent, elem);
         if (c->tid == child_tid) {
             _c = c;
             _e = e;
@@ -211,12 +209,13 @@ process_exit(void) {
         exit(-1);
 
     int exit_code = cur->exit_code;
-		printf("%s: exit(%d)\n",cur->name,exit_code);
 
-		file_lock_acquire();
-		file_close(thread_current()->cur_file);
-		close_all(&thread_current()->files);
-		file_lock_release();
+    printf("%s: exit(%d)\n",cur->name,exit_code);
+		
+    file_lock_acquire();
+    file_close(thread_current()->cur_file);
+    close_all(&thread_current()->files);
+    file_lock_release();
 
     /* Destroy the current process's page directory and switch back
        to the kernel-only page directory. */
@@ -332,7 +331,7 @@ load(user_program *p_user_prog, void (**eip)(void), void **esp) {
     bool success = false;
     int i;
 
-		file_lock_acquire();
+    file_lock_acquire();
     /* Allocate and activate page directory. */
     t->pagedir = pagedir_create();
     if (t->pagedir == NULL)
@@ -419,8 +418,8 @@ load(user_program *p_user_prog, void (**eip)(void), void **esp) {
     *eip = (void (*)(void)) ehdr.e_entry;
     success = true;
 
-		file_deny_write(file);
-		thread_current()->cur_file = file;
+    file_deny_write(file);
+    thread_current()->cur_file = file;
 
     done:
     /* We arrive here whether the load is successful or not. */
@@ -604,6 +603,7 @@ setup_stack(user_program *user_prog, void **esp) {
 
 
         //printf("Push pointer to argv[0] pointer\n");
+
         save_ptr = *esp;
         *esp -= sizeof(char **);
         memcpy(*esp, &save_ptr, sizeof(char **));
