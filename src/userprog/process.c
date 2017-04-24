@@ -38,7 +38,7 @@ tid_t
 process_execute(const char *file_name)
 {
 
-    printf("In process execute");
+    //printf("In process execute");
     char *fn_copy = NULL;
     tid_t tid;
     char *save_ptr;
@@ -86,7 +86,7 @@ If the prcoess does not start successfully must set bool success of thread struc
 ***********************************************************************************************************************/
 static void
 start_process(void *file_name_) {
-    printf("In start process");
+    //printf("In start process");
     //**********************************************************************************************************************
 //MODIFIED BY SHAWN JOHNSON, STEFANI MOORE, AND LENA BANKS
     char *throwaway = NULL;
@@ -107,13 +107,13 @@ start_process(void *file_name_) {
     user_prog.file_name = file_name;
     arg = strtok_r(cpy, " ", &save_ptr);
     arg = strtok_r(NULL, " ", &save_ptr);
-    while (arg != NULL && arg_index < 16) {
+    while (arg != NULL && arg_index < 24) {
         user_prog.args[arg_index] = arg;
         arg = strtok_r(NULL, " ", &save_ptr);
         arg_index++;
     }
 
-    user_prog.arg_count = arg_index;
+    user_prog.arg_count = arg_index + 1;
 
     bool success;
     struct intr_frame if_;
@@ -165,7 +165,7 @@ Waits for thread TID to die and returns its exit status.  If
 ***********************************************************************************************************************/
 int
 process_wait(tid_t child_tid) {
-    printf("In process wait\n");
+    //printf("In process wait");
     /* ADDED BY STEFANI MOORE */
     struct list_elem *e;
     struct child_parent *_c = NULL;
@@ -200,15 +200,16 @@ Free the current process's resources.
 ***********************************************************************************************************************/
 void
 process_exit(void) {
-    printf("In process exit\n");
+    //printf("In process exit\n");
     struct thread *cur = thread_current();
     uint32_t *pd;
 
     /* ADDED BY STEFANI MOORE */
     if (cur->exit_code == -100)
-        exit_process_by_code(-1);
+        exit(-1);
 
     int exit_code = cur->exit_code;
+
     printf("%s: exit(%d)\n",cur->name,exit_code);
 		
     file_lock_acquire();
@@ -255,7 +256,7 @@ process_activate(void) {
 typedef uint32_t Elf32_Word, Elf32_Addr, Elf32_Off;
 typedef uint16_t Elf32_Half;
 
-/* For use with ELF types in printf(). */
+/* For use with ELF types in //printf(). */
 #define PE32Wx PRIx32   /* Print Elf32_Word in hexadecimal. */
 #define PE32Ax PRIx32   /* Print Elf32_Addr in hexadecimal. */
 #define PE32Ox PRIx32   /* Print Elf32_Off in hexadecimal. */
@@ -341,7 +342,7 @@ load(user_program *p_user_prog, void (**eip)(void), void **esp) {
 
 
     if (file == NULL) {
-        printf("load: %s: open failed\n", (*p_user_prog).file_name);
+        //printf("load: %s: open failed\n", (*p_user_prog).file_name);
         goto done;
     }
 
@@ -353,7 +354,7 @@ load(user_program *p_user_prog, void (**eip)(void), void **esp) {
         || ehdr.e_version != 1
         || ehdr.e_phentsize != sizeof(struct Elf32_Phdr)
         || ehdr.e_phnum > 1024) {
-        printf("load: %s: error loading executable\n", (*p_user_prog).file_name);
+        //printf("load: %s: error loading executable\n", (*p_user_prog).file_name);
         goto done;
     }
 
@@ -557,61 +558,63 @@ setup_stack(user_program *user_prog, void **esp) {
 
 
         // Extracts file name and arguments using strtok_r; first get file name,
-        // then up to 16 arguments separated by spaces
+        // then up to 24 arguments separated by spaces
 
         void *save_ptr = *esp;
 
-        printf("Push strings\n");
-        for (int i = (*user_prog).arg_count - 1; i >= 0; --i) {
+        //printf("Push strings\n");
+        for (int i = (*user_prog).arg_count - 2; i >= 0; --i) {
             size_t len = strlen((*user_prog).args[i]) + 1;
             *esp -= len;
             strlcpy(*esp, (*user_prog).args[i], len);
-            printf("Reference to argv[%d] : 0x%x \n", i + 1, (unsigned int) *esp);
+            //printf("Reference to argv[%d] : 0x%x \n", i + 1, (unsigned int) *esp);
             num_bytes += (int) len;
         }
 
         *esp -= strlen((*user_prog).file_name) + 1;
         strlcpy(*esp, (*user_prog).file_name, strlen((*user_prog).file_name) + 1);
-        printf("Reference to argv[0] : 0x%x \n", (unsigned int) *esp);
+        //printf("Reference to argv[0] : 0x%x \n", (unsigned int) *esp);
 
 
         num_bytes += strlen((*user_prog).file_name) + 1;
         int k = 0;
         for (int j = (num_bytes + k) % 4; j != 0; ++k, j = (num_bytes + k) % 4) {
-            printf("Word align\n");
+            //printf("Word align\n");
             *esp -= sizeof(NULL_BYTE);
             memset(*esp, NULL_BYTE, sizeof(NULL_BYTE));
         }
 
-        printf("Push null\n");
+        //printf("Push null\n");
         *esp -= sizeof(char *);
         memset(*esp, 0, sizeof(char *));
 
-        printf("Push string pointers\n");
-        for (int i = (*user_prog).arg_count - 1; i >= 0; --i) {
+        //printf("Push string pointers\n");
+        for (int i = (*user_prog).arg_count - 2; i >= 0; --i) {
             *esp -= sizeof(char *);
             save_ptr -= strlen((*user_prog).args[i]) + 1;
             memcpy(*esp, &save_ptr, sizeof(char *));
-            printf("Pointer to argv[%d]: 0x%x : 0x%x \n", i + 1, (unsigned int) *esp, (unsigned int) save_ptr);
+            //printf("Pointer to argv[%d]: 0x%x : 0x%x \n", i + 1, (unsigned int) *esp, (unsigned int) save_ptr);
         }
 
         *esp -= sizeof(char *);
         save_ptr -= strlen((*user_prog).file_name) + 1;
         memcpy(*esp, &save_ptr, sizeof(char *));
-        printf("Pointer to argv[0]: 0x%x : 0x%x \n", (unsigned int) *esp, (unsigned int) save_ptr);
+        //printf("Pointer to argv[0]: 0x%x : 0x%x \n", (unsigned int) *esp, (unsigned int) save_ptr);
 
-        printf("Push pointer to argv[0] pointer\n");
+
+        //printf("Push pointer to argv[0] pointer\n");
+
         save_ptr = *esp;
         *esp -= sizeof(char **);
         memcpy(*esp, &save_ptr, sizeof(char **));
-        printf("Argv: Pointer to argv[0] pointer: 0x%x : 0x%x \n", (unsigned int) *esp, (unsigned int) save_ptr);
+        //printf("Argv: Pointer to argv[0] pointer: 0x%x : 0x%x \n", (unsigned int) *esp, (unsigned int) save_ptr);
 
-        printf("Push argc\n");
+        //printf("Push argc\n");
         *esp -= sizeof(unsigned int);
         memcpy(*esp, &(*user_prog).arg_count, sizeof(int));
-        printf("Argc: 0x%x : %d \n", (unsigned int) *esp, *((unsigned int *) *esp));
+        //printf("Argc: 0x%x : %d \n", (unsigned int) *esp, *((unsigned int *) *esp));
 
-        printf("Push fake return address\n");
+        //printf("Push fake return address\n");
         *esp -= sizeof(void (*)());
         memset(*esp, 0, sizeof(void (*)()));
 

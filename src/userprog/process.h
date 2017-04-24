@@ -13,7 +13,7 @@ struct process_file {
 
 typedef struct {
     const char *file_name;
-    char *args[16];
+    char *args[24];
     int arg_count;
 
     //dont think a list is necessary, only grandchildren required (check for grandness with parent.parent = NULL)
