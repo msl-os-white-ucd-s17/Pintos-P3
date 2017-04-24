@@ -15,10 +15,10 @@
 
 
 static void syscall_handler(struct intr_frame *);
-static bool user_memory_ok(const void *, int);
+static void user_memory_ok(const void *, int);
 static int file_sys_ok();
 static uint32_t get_user_int32(const void *);
-static bool get_syscall_args(const void *, struct user_syscall *);
+static char * get_syscall_args(const void *, struct user_syscall *);
 struct process_file *search_files(struct list *, int);
 
 
@@ -40,40 +40,33 @@ struct process_file *search_files(struct list *files, int fid) {
     return NULL;
 }
 
-static bool user_memory_ok(const void *stack_pointer, int byte_size) {
+static void user_memory_ok(const void *stack_pointer, int byte_size) {
   char * temp_stack_pointer = (char*)stack_pointer;
 	for (int i = 0; i < byte_size; i++) {
-    if (!is_user_vaddr(stack_pointer) || stack_pointer == NULL || pagedir_get_page(thread_current()->pagedir, temp_stack_pointer) == NULL) { return false; }
+    if (!is_user_vaddr(stack_pointer) || stack_pointer == NULL || pagedir_get_page(thread_current()->pagedir, temp_stack_pointer) == NULL) { exit(-1); }
     temp_stack_pointer++;
   }
-  return true;
 }
 
-static bool
-get_syscall_args(const void *stack_pointer, struct user_syscall *new_syscall) {
-    if (!user_memory_ok(stack_pointer, 1)) {
-      return false;
-    }
-
+static char * get_syscall_args(const void *stack_pointer, struct user_syscall *new_syscall) {
+    char * temp_stack_pointer = (char*)stack_pointer;
     new_syscall->arg_count = 0;
 
     for (int i = 0; i < 3; i++) {
-      if (!user_memory_ok(stack_pointer, 4)) {
-        //printf("Error retrieving System Call Arguments");
-        exit(-1);
-      }
+      user_memory_ok(temp_stack_pointer, 4);
 
-      new_syscall->args[i] = get_user_int32(stack_pointer);
+      new_syscall->args[i] = get_user_int32(temp_stack_pointer);
       new_syscall->arg_count++;
-      stack_pointer = (void*)((char*)stack_pointer + 4);
+      temp_stack_pointer += 4;
     }
+  return temp_stack_pointer;
 };
 
 static uint32_t get_user_int32(const void *stack_pointer){
   char * temp_stack_pointer = (char*)stack_pointer;
   uint8_t byte_array[4];
 
-  if(!user_memory_ok(stack_pointer, 4)){ exit(-1); }
+  user_memory_ok(stack_pointer, 4);
 
   for (int i = 0; i < 4; i++) {
       byte_array[i] = get_user(temp_stack_pointer);
@@ -92,7 +85,7 @@ syscall_handler(struct intr_frame *f) {
   new_syscall.syscall_index = get_user_int32(stack_pointer);
   stack_pointer += 4;
 
-  get_syscall_args(stack_pointer, &new_syscall);
+  stack_pointer = get_syscall_args(stack_pointer, &new_syscall);
   int sys_call_num = (int) new_syscall.syscall_index;
 
   switch (sys_call_num) {
@@ -213,6 +206,9 @@ wait(pid_t pid) {
 // MODIFIED BY SHAWN JOHNSON
 bool
 create(const char *file, unsigned initial_size) {
+    if (file == NULL) {
+        exit(-1);
+    }
     file_lock_acquire();
     bool error = filesys_create(file, initial_size);
     file_lock_release();
