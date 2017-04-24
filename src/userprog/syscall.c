@@ -206,6 +206,9 @@ wait(pid_t pid) {
 // MODIFIED BY SHAWN JOHNSON
 bool
 create(const char *file, unsigned initial_size) {
+    if (file == NULL) {
+        exit(-1);
+    }
     file_lock_acquire();
     bool error = filesys_create(file, initial_size);
     file_lock_release();
