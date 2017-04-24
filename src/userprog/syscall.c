@@ -41,9 +41,10 @@ struct process_file *search_files(struct list *files, int fid) {
 }
 
 static bool user_memory_ok(const void *stack_pointer, int byte_size) {
+  char * temp_stack_pointer = (char*)stack_pointer;
 	for (int i = 0; i < byte_size; i++) {
-    if (!is_user_vaddr(stack_pointer) || stack_pointer == NULL) { return false; }
-    stack_pointer++;
+    if (!is_user_vaddr(stack_pointer) || stack_pointer == NULL || pagedir_get_page(thread_current()->pagedir, temp_stack_pointer) == NULL) { return false; }
+    temp_stack_pointer++;
   }
   return true;
 }
@@ -64,137 +65,93 @@ get_syscall_args(const void *stack_pointer, struct user_syscall *new_syscall) {
 
       new_syscall->args[i] = get_user_int32(stack_pointer);
       new_syscall->arg_count++;
-      stack_pointer += 4;
+      stack_pointer = (void*)((char*)stack_pointer + 4);
     }
 };
 
 static uint32_t get_user_int32(const void *stack_pointer){
+  char * temp_stack_pointer = (char*)stack_pointer;
+  uint8_t byte_array[4];
 
-    uint8_t byte_array[4];
-   
-    for (int i = 0; i < 4; i++) {
-        byte_array[i] = get_user(stack_pointer);
-        stack_pointer++;
-    }
+  if(!user_memory_ok(stack_pointer, 4)){ exit(-1); }
+
+  for (int i = 0; i < 4; i++) {
+      byte_array[i] = get_user(temp_stack_pointer);
+      temp_stack_pointer++;
+  }
 
   return *(uint32_t *) byte_array;
 }
 
 static void
 syscall_handler(struct intr_frame *f) {
-  //printf("\nSystem call!\n");
 
-  if (!user_memory_ok(f->esp, 1)) {
-    //printf("Invalid memory location");
-    exit(-1);
-  }
-
-  void *stack_pointer = (void *) f->esp;
+  char * stack_pointer = (char *) f->esp;
   struct user_syscall new_syscall;
 
-    new_syscall.syscall_index = get_user_int32(stack_pointer);
-    stack_pointer += 4;
+  new_syscall.syscall_index = get_user_int32(stack_pointer);
+  stack_pointer += 4;
 
-    get_syscall_args(stack_pointer, &new_syscall);
-    int sys_call_num = (int) new_syscall.syscall_index;
+  get_syscall_args(stack_pointer, &new_syscall);
+  int sys_call_num = (int) new_syscall.syscall_index;
 
   switch (sys_call_num) {
     case SYS_HALT :
-      //printf("calling SYS_HALT");
       halt();
       break;                   /* Halt the operating system. */
 
     case SYS_EXIT :
-      //printf("calling SYS_EXIT");
       exit((int) new_syscall.args[0]);
       break;                   /* Terminate this process. */
 
     case SYS_EXEC :
-      //printf("calling SYS_EXEC");
       f->eax = exec((const char *) new_syscall.args[0]);
       break;                   /* Start another process. */
 
     case SYS_WAIT :
-      //printf("calling SYS_WAIT");
       f-> eax = process_wait((tid_t) new_syscall.args[0]);
       break;                   /* Wait for a child process to die. */
 
     case SYS_CREATE :
-      //printf("calling SYS_CREATE");
       f->eax = create((const char *) new_syscall.args[0], (unsigned) new_syscall.args[1]);
       break;                 /* Create a file. */
 
     case SYS_REMOVE :
-      //printf("calling SYS_REMOVE");
       f->eax = remove((const char *) new_syscall.args[0]);
       break;                 /* Delete a file. */
 
     case SYS_OPEN :
       f->eax = open((const char *) new_syscall.args[0]);
-      //printf("calling SYS_OPEN");
       break;                   /* Open a file. */
 
     case SYS_FILESIZE :
       f->eax = filesize((int) new_syscall.args[0]);
-      //printf("calling SYS_FILESIZE");
       break;               /* Obtain a file's size. */
 
     case SYS_READ :
-      //printf("calling SYS_READ");
       read((int) new_syscall.args[0], (const void *) new_syscall.args[1], (unsigned) new_syscall.args[2]);
       break;                   /* Read from a file. */
 
     case SYS_WRITE :
-      //printf("calling SYS_WRITE");
       write((int) new_syscall.args[0], (const void *) new_syscall.args[1], (unsigned) new_syscall.args[2]);
 
       break;                  /* Write to a file. */
 
     case SYS_SEEK :
-      //printf("calling SYS_SEEK");
       seek((int) new_syscall.args[0], (unsigned) new_syscall.args[1]);
       break;                   /* Change position in a file. */
 
     case SYS_TELL :
-      //printf("calling SYS_TELL");
       tell((int) new_syscall.args[0]);
 
       break;                   /* Report current position in a file. */
 
     case SYS_CLOSE :
-      //printf("calling SYS_CLOSE");
       close((int) new_syscall.args[0]);
       break;                  /* Close a file. */
 
-            /* Project 3 and optionally project 4. */
-//    case SYS_MMAP :
-//      //printf("calling SYS_MMAP");
-//      break;                   /* Map a file into memory. */
-//    case SYS_MUNMAP :
-//      //printf("calling SYS_MUNMAP");
-//      break;                 /* Remove a memory mapping. */
-//
-//      /* Project 4 only. */
-//    case SYS_CHDIR :
-//      //printf("calling SYS_CHDIR");
-//      break;                  /* Change the current directory. */
-//    case SYS_MKDIR :
-//      //printf("calling SYS_MKDIR");
-//      break;                  /* Create a directory. */
-//    case SYS_READDIR :
-//      //printf("calling SYS_READDIR");
-//      break;                /* Reads a directory entry. */
-//    case SYS_ISDIR :
-//      //printf("calling SYS_ISDIR");
-//      break;                  /* Tests if a fd represents a directory. */
-//    case SYS_INUMBER:
-//      //printf("calling SYS_INUMBER");
-//      break;
-
-        default:
-            //printf("Unrecognized System Call");
-            break;
-
+    default:
+        break;
   }
 }
 
@@ -298,12 +255,6 @@ syscall_handler(struct intr_frame *f) {
 	struct file *f;
 	file_lock_acquire();
 
-
-
-//	if(fd == 0)
-//	{
-//	}
-
 	f = process_get_file(fd);
 	if (f == NULL) // If file could not be read, return -1
 	{
@@ -346,13 +297,11 @@ syscall_handler(struct intr_frame *f) {
     seek(int fd, unsigned position) {
 	struct file *f;
 	f = process_get_file(fd);
-	//f = search_files(f, fd);
 	if (f == NULL)
 	{
 		printf("Seek failed. Exiting");
 		exit(-1);	// Should exit
 	}
-	//f->pos = position;
 	file_seek(f, position);		// Set file position to new position from file.c
         return;
     }
@@ -406,41 +355,4 @@ close_all (struct list* files)
 		free(f);
 	}
 }
-
-
-
-//  mapid_t
-//  mmap(int fd, void *addr) {
-//    return;
-//  }
-//
-//  void
-//  munmap(mapid_t mapid) {
-//    return;
-//  }
-//
-//  bool
-//  chdir(const char *dir) {
-//    return;
-//  }
-//
-//  bool
-//  mkdir(const char *dir) {
-//    return;
-//  }
-//
-//  bool
-//  readdir(int fd, char name[READDIR_MAX_LEN + 1]) {
-//    return;
-//  }
-//
-//  bool
-//  isdir(int fd) {
-//    return;
-//  }
-//
-//  int
-//  inumber(int fd) {
-//    return;
-//  }
 
