@@ -206,6 +206,7 @@ wait(pid_t pid) {
 // MODIFIED BY SHAWN JOHNSON
 bool
 create(const char *file, unsigned initial_size) {
+    user_memory_ok(file,1);
     file_lock_acquire();
     bool error = filesys_create(file, initial_size);
     file_lock_release();
@@ -224,6 +225,7 @@ remove(const char *file) {
 // MODIFIED BY SHAWN JOHNSON
 int
 open(const char *file) {
+    user_memory_ok(file, 1);
     file_lock_acquire();
     struct file *oFile = filesys_open(file);
     if (oFile == NULL) {
