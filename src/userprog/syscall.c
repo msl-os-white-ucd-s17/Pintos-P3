@@ -176,7 +176,7 @@ exit(int status) {
 
   pid_t
   exec(const char *file) {
-    user_memory_ok(file,1);
+    user_memory_ok(file,sizeof(file));
     file_lock_acquire();
     char *f_cpy = malloc (strlen(file)+1);
     strlcpy (f_cpy, file, (strlen(file)+1));
