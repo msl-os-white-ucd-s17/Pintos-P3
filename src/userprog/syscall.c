@@ -13,7 +13,6 @@
 #include "userprog/process.h"
 #include "lib/stdbool.h"
 
-
 static void syscall_handler(struct intr_frame *);
 static void user_memory_ok(const void *, int);
 static int file_sys_ok();
@@ -122,7 +121,7 @@ syscall_handler(struct intr_frame *f) {
       break;               /* Obtain a file's size. */
 
     case SYS_READ :
-      read((int) new_syscall.args[0], (const void *) new_syscall.args[1], (unsigned) new_syscall.args[2]);
+      read((int) new_syscall.args[0], (void *) new_syscall.args[1], (unsigned) new_syscall.args[2]);
       break;                   /* Read from a file. */
 
     case SYS_WRITE :
@@ -291,6 +290,13 @@ close_all (struct list* files)
 
 int
 read(int fd, void *buffer, unsigned size) {
+    if (fd == 0) {
+        char* buf = (char *) buffer;
+        for (unsigned i = 0; i < size; ++i) {
+            buf[i] = input_getc();
+        }
+        return size;
+    }
     struct file *f = NULL;
     file_lock_acquire();
 
