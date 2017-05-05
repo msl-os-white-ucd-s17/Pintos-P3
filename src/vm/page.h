@@ -1,3 +1,6 @@
+#ifndef __PAGE_H
+#define __PAGE_H
+
 #include <stdbool.h>
 /* Virtual Page */
 struct page
@@ -36,3 +39,4 @@ struct page
 /* Declation fo a hash_less_func for the pages hash table */
 
 // TODO
+#endif
