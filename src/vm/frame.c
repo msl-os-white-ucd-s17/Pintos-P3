@@ -1,4 +1,4 @@
-
+#include "frame.h"
 
 /* Global frames array */
 // TODO
@@ -14,3 +14,8 @@
 
 /* Frame Mangament function definitions */
 // TODO
+
+void frame_table_init() {
+    lock_init(&scan_lock);
+    list_init(&frame_table);
+}
