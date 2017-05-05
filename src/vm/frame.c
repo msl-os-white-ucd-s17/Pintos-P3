@@ -2,6 +2,7 @@
 #include "lib/debug.h"
 #include "threads/palloc.h"
 #include "threads/malloc.h"
+#include "threads/loader.h"
 
 
 /* Global frame_ct, the number of physical frames represented */
@@ -13,25 +14,36 @@
 /* Frame Mangament function definitions */
 // TODO
 
-void frame_table_init() {
+static void frame_table_init() {
     lock_init(&scan_lock);
-    list_init(&frame_table);
+    frame_ct = 0;
+    frame_table = malloc(sizeof(struct frame) * init_ram_pages);
+    for (void *p = palloc_get_page(PAL_USER); p != NULL; p = palloc_get_page(PAL_USER), frame_ct++) {
+        struct frame *nframe = &frame_table[frame_ct];
+        lock_init(&nframe->lock);
+        nframe->base = p;
+        nframe->page = NULL;
+    }
+
 }
 
-void *get_frame(enum palloc_flags flags) {
-    void *f = palloc_get_page(flags);
-    if (f == NULL) {
-        PANIC("FUT@)*YRF*D^*T!!!@!");
+void *get_frame(enum palloc_flags flags, struct page *page) {
+    // Assert flags == PAL_USER?
+    ASSERT(page != NULL);
+    lock_acquire(&scan_lock);
+
+    for (int i = 0; i < frame_ct; i++) {
+
     }
-    else {
-        lock_acquire(&scan_lock);
-        struct frame *fe = malloc(sizeof(struct frame));
-        ASSERT(fe != NULL);
-        fe->base = f;
-        lock_init(fe->lock);
-        // Where does struct *page come from?
-        // We don't create it here..?
-        list_push_back(frame_table, fe->e);
-        lock_release(&scan_lock);
-    }
+
+
+    lock_release(&scan_lock);
+}
+
+bool frame_lock(struct frame *fr) {
+
+}
+
+bool frame_unlock(struct frame *fr) {
+
 }
