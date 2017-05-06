@@ -19,6 +19,7 @@
 #include "threads/vaddr.h"
 #include "process.h"
 #include "../threads/thread.h"
+#include "vm/page.h"
 
 static thread_func start_process NO_RETURN;
 static bool load(user_program *p_user_prog, void (**eip)(void), void **esp);
@@ -338,6 +339,8 @@ load(user_program *p_user_prog, void (**eip)(void), void **esp) {
         goto done;
     process_activate();
 
+    hash_init(&t->pages, compute_hash, hash_compare);
+
     file = filesys_open((*p_user_prog).file_name);
 
 
@@ -505,7 +508,7 @@ load_segment(struct file *file, off_t ofs, uint8_t *upage,
         size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
         /* Get a page of memory. */
-        uint8_t *kpage = palloc_get_page(PAL_USER);
+        uint8_t *kpage = getPage(PAL_USER);
         if (kpage == NULL)
             return false;
 

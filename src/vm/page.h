@@ -3,6 +3,9 @@
 
 #include <stdbool.h>
 #include "frame.h"
+#include "lib/kernel/hash.h"
+#include <stdint.h>
+
 /* Virtual Page */
 struct page
 {
@@ -31,13 +34,15 @@ struct page
 
 /* User page managment function declarations */
 
-// TODO
+void *getPage(enum palloc_flags flags);
+void page_in(void *addr);
 
 /* Declaration of a hash_hash_func for the pages hash table */
 
-// TODO
+hash_hash_func compute_hash(const struct hash_elem *e, void *aux);
 
 /* Declation fo a hash_less_func for the pages hash table */
 
-// TODO
+hash_less_func hash_compare(const struct hash_elem *a, const struct hash_elem *b, void *aux);
+
 #endif
