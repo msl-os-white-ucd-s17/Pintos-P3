@@ -27,14 +27,29 @@ static void frame_table_init() {
 
 }
 
-void *get_frame(enum palloc_flags flags, struct page *page) {
+struct frame *install_frame(enum palloc_flags flags, struct page *page) {
     // Assert flags == PAL_USER?
     ASSERT(page != NULL);
     lock_acquire(&scan_lock);
 
+    struct frame *aframe = NULL;
+
     for (int i = 0; i < frame_ct; i++) {
+        aframe = frame_table[i];
+        if (!lock_try_acquire(&aframe->lock)) {
+            continue;
+        }
+        else {
+            ASSERT(aframe->page == NULL);
+            aframe->page = page;
+            page->frame = aframe;
+            lock_release(&scan_lock);
+            return aframe;
+        }
 
     }
+
+    // Eviction
 
 
     lock_release(&scan_lock);

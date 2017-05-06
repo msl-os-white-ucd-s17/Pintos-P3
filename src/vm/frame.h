@@ -6,7 +6,7 @@
 static struct lock scan_lock;
 static struct frame *frame_table;
 static int frame_ct;
-
+static int hand;
 
 /* A physical frame */
 struct frame
@@ -19,7 +19,8 @@ struct frame
 // * Frame management funtion declarations *//
 // TODO 
 static void frame_table_init();
-void *get_frame(enum palloc_flags flags);
-bool insert_frame(struct frame *iframe);
+struct frame *install_frame(enum palloc_flags flags, struct page *page);
+
+
 
 #endif

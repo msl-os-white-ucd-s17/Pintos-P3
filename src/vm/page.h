@@ -2,6 +2,7 @@
 #define __PAGE_H
 
 #include <stdbool.h>
+#include "frame.h"
 /* Virtual Page */
 struct page
 {
