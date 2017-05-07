@@ -1,8 +1,9 @@
 #include "frame.h"
-#include "lib/debug.h"
-#include "threads/palloc.h"
-#include "threads/malloc.h"
-#include "threads/loader.h"
+#include "page.h"
+#include "../lib/debug.h"
+#include "../threads/palloc.h"
+#include "../threads/malloc.h"
+#include "../threads/loader.h"
 
 
 /* Global frame_ct, the number of physical frames represented */
@@ -35,13 +36,15 @@ struct frame *install_frame(enum palloc_flags flags, struct page *page) {
     struct frame *aframe = NULL;
 
     for (int i = 0; i < frame_ct; i++) {
-        aframe = frame_table[i];
+        aframe = &frame_table[i];
         if (!lock_try_acquire(&aframe->lock)) {
             continue;
         }
         else {
             ASSERT(aframe->page == NULL);
             aframe->page = page;
+
+
             page->frame = aframe;
             lock_release(&scan_lock);
             return aframe;

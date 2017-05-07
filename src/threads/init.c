@@ -1,4 +1,4 @@
-#include "threads/init.h"
+#include "../threads/init.h"
 #include <console.h>
 #include <debug.h>
 #include <inttypes.h>
@@ -8,20 +8,21 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "devices/kbd.h"
-#include "devices/input.h"
-#include "devices/serial.h"
-#include "devices/shutdown.h"
-#include "devices/timer.h"
-#include "devices/vga.h"
-#include "devices/rtc.h"
-#include "threads/interrupt.h"
-#include "threads/io.h"
-#include "threads/loader.h"
-#include "threads/malloc.h"
-#include "threads/palloc.h"
-#include "threads/pte.h"
-#include "threads/thread.h"
+#include "../devices/kbd.h"
+#include "../devices/input.h"
+#include "../devices/serial.h"
+#include "../devices/shutdown.h"
+#include "../devices/timer.h"
+#include "../devices/vga.h"
+#include "../devices/rtc.h"
+#include "../threads/interrupt.h"
+#include "../threads/io.h"
+#include "../threads/loader.h"
+#include "../threads/malloc.h"
+#include "../threads/palloc.h"
+#include "../threads/pte.h"
+#include "../threads/thread.h"
+#include "../vm/frame.c"
 #ifdef USERPROG
 #include "userprog/process.h"
 #include "userprog/exception.h"
@@ -99,6 +100,9 @@ main (void)
   malloc_init ();
   paging_init ();
 
+#ifdef VM
+  frame_table_init();
+#endif
   /* Segmentation. */
 #ifdef USERPROG
   tss_init ();

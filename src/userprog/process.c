@@ -5,21 +5,21 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "userprog/gdt.h"
-#include "userprog/pagedir.h"
-#include "userprog/tss.h"
-#include "filesys/directory.h"
-#include "filesys/file.h"
-#include "filesys/filesys.h"
-#include "threads/flags.h"
-#include "threads/init.h"
-#include "threads/interrupt.h"
-#include "threads/palloc.h"
-#include "threads/thread.h"
-#include "threads/vaddr.h"
+#include "../userprog/gdt.h"
+#include "../userprog/pagedir.h"
+#include "../userprog/tss.h"
+#include "../filesys/directory.h"
+#include "../filesys/file.h"
+#include "../filesys/filesys.h"
+#include "../threads/flags.h"
+#include "../threads/init.h"
+#include "../threads/interrupt.h"
+#include "../threads/palloc.h"
+#include "../threads/thread.h"
+#include "../threads/vaddr.h"
 #include "process.h"
 #include "../threads/thread.h"
-#include "vm/page.h"
+#include "../vm/page.c"
 
 static thread_func start_process NO_RETURN;
 static bool load(user_program *p_user_prog, void (**eip)(void), void **esp);
@@ -339,8 +339,7 @@ load(user_program *p_user_prog, void (**eip)(void), void **esp) {
         goto done;
     process_activate();
 
-    hash_init(&t->pages, compute_hash, hash_compare);
-
+    hash_init(&t->pages, compute_hash, hash_compare, NULL);
     file = filesys_open((*p_user_prog).file_name);
 
 
@@ -432,7 +431,6 @@ load(user_program *p_user_prog, void (**eip)(void), void **esp) {
 
 /* load() helpers. */
 
-static bool install_page(void *upage, void *kpage, bool writable);
 
 /* Checks whether PHDR describes a valid, loadable segment in
    FILE and returns true if so, false otherwise. */
@@ -507,27 +505,26 @@ load_segment(struct file *file, off_t ofs, uint8_t *upage,
         size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
         size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
-        /* Get a page of memory. */
-        uint8_t *kpage = getPage(PAL_USER);
-        if (kpage == NULL)
-            return false;
-
-        /* Load this page. */
-        if (file_read(file, kpage, page_read_bytes) != (int) page_read_bytes) {
-            palloc_free_page(kpage);
-            return false;
-        }
-        memset(kpage + page_read_bytes, 0, page_zero_bytes);
+//        /* Get a page of memory. */
+//        uint8_t *kpage = getPage(PAL_USER);
+//        if (kpage == NULL)
+//            return false;
+//
+//        /* Load this page. */
+//        if (file_read(file, kpage, page_read_bytes) != (int) page_read_bytes) {
+//            palloc_free_page(kpage);
+//            return false;
+//        }
+//        memset(kpage + page_read_bytes, 0, page_zero_bytes);
 
         /* Add the page to the process's address space. */
-        if (!install_page(upage, kpage, writable)) {
-            palloc_free_page(kpage);
+        if (!add_file(file,ofs,upage,page_read_bytes, page_zero_bytes, writable))
             return false;
-        }
 
         /* Advance. */
         read_bytes -= page_read_bytes;
         zero_bytes -= page_zero_bytes;
+        ofs += page_read_bytes;
         upage += PGSIZE;
     }
     return true;
@@ -540,18 +537,25 @@ Create a minimal stack by mapping a zeroed page at the top of user virtual memor
 ***********************************************************************************************************************/
 static bool
 setup_stack(user_program *user_prog, void **esp) {
+
     uint8_t *kpage;
     bool success = false;
 
-    kpage = palloc_get_page(PAL_USER | PAL_ZERO);
-    if (kpage != NULL) {
-        success = install_page(((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
-        if (success)
-            *esp = PHYS_BASE;
-        else {
-            palloc_free_page(kpage);
-            return success;
-        }
+    success = add_page_to_stack(((uint8_t*)PHYS_BASE) - PGSIZE);
+    
+    if(success){
+      *esp = PHYS_BASE;
+
+
+    //kpage = palloc_get_page(PAL_USER | PAL_ZERO);
+//    if (kpage != NULL) {
+//        success = install_page(((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
+//        if (success)
+//            *esp = PHYS_BASE;
+//        else {
+//            palloc_free_page(kpage);
+//            return success;
+//        }
 //**********************************************************************************************************************
 //MODIFIED BY SHAWN JOHNSON AND LENA BANKS AND STEFANI MOORE
 
