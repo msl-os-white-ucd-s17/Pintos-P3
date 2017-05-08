@@ -15,6 +15,7 @@
 /* Frame Mangament function definitions */
 // TODO
 
+/* Called once on startup. */
 static void frame_table_init() {
     lock_init(&scan_lock);
     frame_ct = 0;
@@ -28,6 +29,7 @@ static void frame_table_init() {
 
 }
 
+/* 'Allocates' a frame from our array of frames. */
 struct frame *install_frame(enum palloc_flags flags, struct page *page) {
     // Assert flags == PAL_USER?
     ASSERT(page != NULL);
