@@ -29,7 +29,13 @@ void init_swap() {
 }
 
 void swap_in(struct page *pin) {
-
+    swap_block = block_get_role(BLOCK_SWAP);        // Get block with SWAP role
+    ASSERT (pin != NULL);
+    lock_acquire(&swap_lock);
+    
+    
+    
+    lock_release(&swap_lock);
 }
 
 /* Probably should make a page/frame evict function that calls this one.*/

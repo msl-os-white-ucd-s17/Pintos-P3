@@ -66,3 +66,8 @@ bool frame_lock(struct frame *fr) {
 bool frame_unlock(struct frame *fr) {
 
 }
+
+/* 
+http://courses.cs.vt.edu/~cs3204/spring2009/pintos-vt-local/Project3Session.pdf
+http://csl.skku.edu/uploads/CSE3008F09/project3.pdf
+*/
