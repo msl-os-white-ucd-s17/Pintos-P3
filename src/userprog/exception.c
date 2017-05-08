@@ -4,7 +4,8 @@
 #include "userprog/gdt.h"
 #include "threads/interrupt.h"
 #include "threads/thread.h"
-#include "vm/page.h"
+#include "../vm/page.h"
+#include "../threads/vaddr.h"
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
@@ -90,6 +91,7 @@ kill (struct intr_frame *f)
       printf ("%s: dying due to interrupt %#04x (%s).\n",
               thread_name (), f->vec_no, intr_name (f->vec_no));
       intr_dump_frame (f);
+        //TODO get correct frame/page to dump?
       exit(-1);
 
     case SEL_KCSEG:
@@ -149,8 +151,13 @@ page_fault (struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 
-  if (not_present && user) {
-    page_in(fault_addr);
+  bool load_ok = false;
+  if (not_present && user && is_user_vaddr(fault_addr)) {
+    struct page *page = get_page_from_table(fault_addr);
+    if(page){
+      load_ok = load_page(page);
+    }
+    //page_in(fault_addr);
   }
 
 
@@ -158,13 +165,12 @@ page_fault (struct intr_frame *f)
   /* To implement virtual memory, delete the rest of the function
      body, and replace it with code that brings in the page to
      which fault_addr refers. */
-  /*
+
   printf ("Page fault at %p: %s error %s page in %s context.\n",
           fault_addr,
           not_present ? "not present" : "rights violation",
           write ? "writing" : "reading",
           user ? "user" : "kernel");
   kill (f);
-   */
 }
 

@@ -1,8 +1,9 @@
 #include "frame.h"
-#include "lib/debug.h"
-#include "threads/palloc.h"
-#include "threads/malloc.h"
-#include "threads/loader.h"
+#include "page.h"
+#include "../lib/debug.h"
+#include "../threads/palloc.h"
+#include "../threads/malloc.h"
+#include "../threads/loader.h"
 
 
 /* Global frame_ct, the number of physical frames represented */
@@ -14,6 +15,7 @@
 /* Frame Mangament function definitions */
 // TODO
 
+/* Called once on startup. */
 static void frame_table_init() {
     lock_init(&scan_lock);
     frame_ct = 0;
@@ -27,6 +29,7 @@ static void frame_table_init() {
 
 }
 
+/* 'Allocates' a frame from our array of frames. */
 struct frame *install_frame(enum palloc_flags flags, struct page *page) {
     // Assert flags == PAL_USER?
     ASSERT(page != NULL);
@@ -34,8 +37,9 @@ struct frame *install_frame(enum palloc_flags flags, struct page *page) {
 
     struct frame *aframe = NULL;
 
+
     for (int i = 0; i < frame_ct; i++) {
-        aframe = frame_table[i];
+        aframe = &frame_table[i];
         if (!lock_try_acquire(&aframe->lock)) {
             continue;
         }
@@ -62,3 +66,8 @@ bool frame_lock(struct frame *fr) {
 bool frame_unlock(struct frame *fr) {
 
 }
+
+/* 
+http://courses.cs.vt.edu/~cs3204/spring2009/pintos-vt-local/Project3Session.pdf
+http://csl.skku.edu/uploads/CSE3008F09/project3.pdf
+*/
