@@ -1,7 +1,7 @@
 #include "page.h"
 #include "../userprog/process.h"
 #include "threads/vaddr.h"
-#include "lib/kernel/hash.h"
+#include "../lib/kernel/hash.h"
 #include "../threads/palloc.h"
 
 /* STACK_MAX (e.g 1M) */
@@ -15,9 +15,9 @@
 
 unsigned compute_hash(const struct hash_elem *e, void *aux UNUSED) {
     struct page *p = hash_entry(e, struct page, hash_elem);
-    void *a = pg_round_down(p->addr);
-    uintptr_t page_no = pg_no(a);
-    return hash_int(page_no);
+//    void *a = pg_round_down(p->addr);
+//    uintptr_t page_no = pg_no(a);
+    return hash_int(&p->addr);
 }
 
 
@@ -28,7 +28,50 @@ bool hash_compare(const struct hash_elem *a, const struct hash_elem *b, void *au
 }
 
 void *getPage(enum palloc_flags flags) {
+}
 
+struct page * get_page_from_table(void * addr){
+  struct page page;
+  page.addr = pg_round_down(addr);
+
+  struct hash_elem *page_elem = hash_find(&thread_current()->pages, &page.hash_elem);
+  if(!page_elem){return NULL;}
+  return hash_entry(page_elem, struct page, hash_elem);
+}
+
+bool load_page(struct page * page) {
+  bool success = false;
+  if (page->loaded) { return success; }
+
+  switch (page->source_type) {
+    case FILE:
+      success = load_file(page);
+    case SWAP:
+
+    case MMAP:
+
+    default:
+      break;
+  }
+  return success;
+}
+
+bool load_file(struct page *page){
+  enum palloc_flags flags = PAL_USER;
+
+  if (page->read_bytes == 0){flags |= PAL_ZERO;}
+
+  uint8_t *frame = install_frame(flags,page);
+  if (!frame){return false;}
+
+  if(page->read_bytes > 0){
+    //TODO check file size with read_bytes
+    memset(frame + page->read_bytes, 0, page->zero_bytes);
+  }
+
+  if(!install_page(page->addr,frame,!page->read_only)){return false;}
+  page->loaded = true;
+  return true;
 }
 
 void page_in(void *addr) {

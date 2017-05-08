@@ -18,6 +18,7 @@
 #include "../threads/thread.h"
 #include "../threads/vaddr.h"
 #include "process.h"
+#include "../vm/frame.h"
 #include "../threads/thread.h"
 #include "../vm/page.c"
 

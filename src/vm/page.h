@@ -42,6 +42,8 @@ struct page
 
 /* User page managment function declarations */
 
+struct page * get_page_from_table(void * addr);
+bool load_file(struct page *page);
 bool add_file(struct file *file, int32_t offset, uint8_t *user_page, uint32_t read_bytes, uint32_t zero_bytes, bool read_only);
 //void *getPage(enum palloc_flags);
 //void page_in(void*);

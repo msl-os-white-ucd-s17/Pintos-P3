@@ -35,6 +35,7 @@ struct frame *install_frame(enum palloc_flags flags, struct page *page) {
 
     struct frame *aframe = NULL;
 
+
     for (int i = 0; i < frame_ct; i++) {
         aframe = &frame_table[i];
         if (!lock_try_acquire(&aframe->lock)) {
@@ -43,8 +44,6 @@ struct frame *install_frame(enum palloc_flags flags, struct page *page) {
         else {
             ASSERT(aframe->page == NULL);
             aframe->page = page;
-
-
             page->frame = aframe;
             lock_release(&scan_lock);
             return aframe;
